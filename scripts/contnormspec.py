@@ -24,7 +24,7 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False):
     npolymax = 14
     poly_dlam = 100.
     
-    buff = 0.
+    buff = 1
     mask = np.ones(npolymax+1)
     covar = np.empty((npolymax+1, npolymax+1))
     

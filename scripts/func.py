@@ -209,11 +209,12 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
         #           mindx(j),data_indx(j)%indx,data_indx(j)%err
 
 
-    #!include priors (func_val is chi^2)
-    if (pr <= tiny_number):
-        func_val = huge_number 
-    else: 
-        func_val = func_val - 2*np.log(pr)
+    # #!include priors (func_val is chi^2)
+    # use priors.py
+    # if (pr <= tiny_number):
+    #     func_val = huge_number 
+    # else: 
+    #     func_val = func_val - 2*np.log(pr)
 
     if spec == False:
         return func_val

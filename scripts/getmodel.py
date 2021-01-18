@@ -1,5 +1,4 @@
-import pickle, copy, numpy as np
-
+import pickle, numpy as np
 #from alf_vars import *
 from velbroad import *
 from linterp import *
@@ -220,7 +219,7 @@ def getmodel(pos, alfvar = None, mw = 0):
 
     else:
         # ---- compute a Kroupa IMF, line196
-        print('get kroupa:', dt, dm, vt, vm)
+        #print('get kroupa:', dt, dm, vt, vm)
         spec = 10**(dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
                     (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
                     dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 

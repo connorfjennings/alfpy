@@ -1,5 +1,5 @@
-from alf_vars import *
-from str2arr import *
+#from alf_vars import *
+from str2arr import alfobj, str2arr
 import copy, random, numpy as np
 
 __all__ = ['set_pinit_priors']
@@ -23,13 +23,7 @@ def set_pinit_priors(alfvar, velz=None):
     testarr1, posarr1, tprhiarr1 = np.zeros((3, npar))
     
     # --------------------------------------------------------------- #
-    pos, prlo, prhi =  ALFPARAM(),  ALFPARAM(),  ALFPARAM()
-    test = ALFPARAM()
-    #tprlo = copy.deepcopy(prlo)
-    #tprhi = copy.deepcopy(prhi)
-    tprlo = prlo
-    tprhi = prhi
-  
+    pos, prlo, prhi =  alfobj(),  alfobj(),  alfobj()  
     
     # setup the first position
     # example: pos.logage = random.random*0.4+0.6
@@ -53,7 +47,6 @@ def set_pinit_priors(alfvar, velz=None):
     for i, ikey in enumerate(list(pos_dict.keys())):
         tem = pos_dict[ikey]
         pos.__setattr__(ikey, random.random()*tem[0] + tem[1])
-        
         
     if imf_type <= 3:
         pos.imf1 = random.random()*1.0-0.3 + 1.3
@@ -84,19 +77,15 @@ def set_pinit_priors(alfvar, velz=None):
     if fit_type == 0:
         if fit_two_ages == 0:
             # ---- !in this case we have a single age model, so it needs tocover the full range
-            if prlo.logage == test.logage:
-                prlo.logage = np.log10(0.5)
+            prlo.logage = np.log10(0.5)
         else:
             # ---- in this case we're fitting a two component model so dont allow them to overlap in age
-            if prlo.logage == test.logage:
-                prlo.logage = np.log10(3.0)  
+            prlo.logage = np.log10(3.0)  
     else:
         # ---- in this case we have a single age model, so it needs to cover the full range
-        if prlo.logage == test.logage:
-            prlo.logage = np.log10(0.5) 
+        prlo.logage = np.log10(0.5) 
             
-    if prhi.logage == test.logage:
-        prhi.logage = np.log10(14.0)
+    prhi.logage = np.log10(14.0)
             
     prior_dict = {'zh': (-1.8, 0.3), 'feh': (-0.3, 0.5), 'ah': (-0.3, 0.5), 
                   'ch': (-0.3, 0.5), 'nh': (-0.3, 1.0), 
@@ -108,7 +97,7 @@ def set_pinit_priors(alfvar, velz=None):
                   'teff': (-50., 50.), 'logfy':(-6., -0.1), 'fy_logage': (np.log10(0.5), np.log10(3.0)), 
                   'logm7g': (-6., -1.0), 'hotteff':(8., 30.), 'loghot':(-8.0, -1.0), 
                   'sigma':(10., 1e3), 'sigma2':(10., 1e3), 'chi2':(0, 2e33),
-                  'velz':(-1e3, 1e5), 'velz2':(-1e3, 1e5), 
+                  'velz':(-1e3, 5e4), 'velz2':(-1e3, 5e4), 
                   'logtrans':(-6., 1.0), 'logemline_h': (-6., 1.0), 'logemline_oii': (-6., 1.0), 
                   'logemline_oiii': (-6., 1.0),'logemline_ni': (-6., 1.0), 'logemline_nii': (-6., 1.0), 
                   'logemline_sii': (-6., 1.0),
@@ -119,89 +108,68 @@ def set_pinit_priors(alfvar, velz=None):
     
     for i, ikey in enumerate(list(prior_dict.keys())):
         tem = prior_dict[ikey]
-        if getattr(prlo, ikey) == getattr(test, ikey):
-            prlo.__setattr__(ikey, tem[0]) 
-        if getattr(prhi, ikey) == getattr(test, ikey):
-            prhi.__setattr__(ikey, tem[1]) 
+        prlo.__setattr__(ikey, tem[0]) 
+        prhi.__setattr__(ikey, tem[1]) 
                                                         
         
     if imf_type <= 3:
-        if prlo.imf1 == test.imf1:
-            prlo.imf1 = 0.5
-        if prhi.imf1 == test.imf1:
-            prhi.imf1 = 3.5
-            
-        if prlo.imf3 == test.imf3:
-            prlo.imf3 = 0.08
-        if prhi.imf3 == test.imf3:
-            prhi.imf3 = 0.4
+        prlo.imf1 = 0.5
+        prhi.imf1 = 3.5  
+        prlo.imf3 = 0.08
+        prhi.imf3 = 0.4
             
     else:
-        if prlo.imf1 == test.imf1:
-            prlo.imf1 = -5.0
-        if prhi.imf1 == test.imf1:
-            prhi.imf1 = 3.0
-            
-        if prlo.imf3 == test.imf3:
-            prlo.imf3 = -5.0
-        if prhi.imf3 == test.imf3:
-            prhi.imf3 = 3.0
+        prlo.imf1 = -5.0
+        prhi.imf1 = 3.0
+        prlo.imf3 = -5.0
+        prhi.imf3 = 3.0
         
     if imf_type in [0, 1, 3]:
-        if prlo.imf2 == test.imf2:
-            prlo.imf2 = 0.5
-        if prhi.imf2 == test.imf2:
-            prhi.imf2 = 3.5
+        prlo.imf2 = 0.5
+        prhi.imf2 = 3.5
             
     elif imf_type == 2:
-        if prlo.imf2 == test.imf2:
-            prlo.imf2 = -5.0
-        if prhi.imf2 == test.imf2:
-            prhi.imf2 = 0.5
+        prlo.imf2 = -5.0
+        prhi.imf2 = 0.5
             
     elif imf_type == 4:
-        if prlo.imf2 == test.imf2:
-            prlo.imf2 = -4.0
-        if prhi.imf2 == test.imf2:
-            prhi.imf2 = 3.0
+        prlo.imf2 = -4.0
+        prhi.imf2 = 3.0
 
-    if prlo.imf4 == test.imf4:
-        prlo.imf4 = -5.0
-    if prhi.imf4 == test.imf4:
-        prhi.imf4 = 3.0
+    prlo.imf4 = -5.0
+    prhi.imf4 = 3.0
 
     #--------------------------------------------------------------------------!
     #-------reset the initial parameters if the priors have been altered-------!
     #--------------------------------------------------------------------------!
     
     # ---- str->arr
-    tprloarr1 = str2arr(switch = 1, instr = tprlo)
-    tprhiarr1 = str2arr(switch = 1, instr = tprhi)
+    #tprloarr1 = str2arr(switch = 1, instr = tprlo)
+    #tprhiarr1 = str2arr(switch = 1, instr = tprhi)
     prloarr1 = str2arr(switch = 1, instr = prlo)
     prhiarr1 = str2arr(switch = 1, instr = prhi)
-    testarr1 = str2arr(switch = 1, instr = test)
+    #testarr1 = str2arr(switch = 1, instr = test)
     posarr1 = str2arr(switch = 1, instr = pos)
 
     # ---- test the priors and if the priors have been altered then 
     # ---- re-initialize the parameters within the prior range
     # ---- NB: why not simply always initialize the starting position this way?
     
-    for i in range(npar):
-        if prhiarr1[i] <= prloarr1[i]:
-            print('SET_PINIT_PRIORS ERROR: prhi <= prlo!', i)
-        # ---- reset the initial parameters randomly within the prior range
-        # ---- if both the initial priors have changed *and* the position is outside
-        # ---- of the new priors
-        if np.logical_or(tprhiarr1[i] != testarr1[i], tprloarr1[i] != testarr1[i]):
-            if posarr1[i] >= prhiarr1[i] or posarr1[i] <= prloarr1[9]:
-                posarr1[i] = random.random()*(prhiarr1[i] - prloarr1[i]) + prloarr1[i]
+    #for i in range(npar):
+    #    if prhiarr1[i] <= prloarr1[i]:
+    #        print('SET_PINIT_PRIORS ERROR: prhi <= prlo!', i)
+    #    # ---- reset the initial parameters randomly within the prior range
+    #    # ---- if both the initial priors have changed *and* the position is outside
+    #    # ---- of the new priors
+    #    if np.logical_or(tprhiarr1[i] != testarr1[i], tprloarr1[i] != testarr1[i]):
+    #        if posarr1[i] >= prhiarr1[i] or posarr1[i] <= prloarr1[9]:
+    #            posarr1[i] = random.random()*(prhiarr1[i] - prloarr1[i]) + prloarr1[i]
                 
     if velz is not None:
         posarr1[0] = velz + 50*(random.random()*2.-1)
         
     # ---- arr -> str
     pos = str2arr(switch=2, inarr=posarr1)
-    
-    return copy.deepcopy(pos), copy.deepcopy(prlo), copy.deepcopy(prhi)
+    return pos, prlo, prhi
     
 

@@ -1,12 +1,21 @@
-import os, numpy as np
-from datetime import datetime
-import alf_vars import *
+import os, copy, pickle, numpy as np
+from func import func
+from alf_vars import *
 from set_pinit_priors import *
 from alf_constants import *
 import emcee, time
 from multiprocessing import Pool
+import dynesty
+from dynesty import NestedSampler, DynamicNestedSampler
+from priors import TopHat, lnprior
+from read_data import *
+from linterp import *
+from str2arr import *
+from getvelz import getvelz
+#import h5py
 
-def alf(filename, alfvar=None):
+
+def alf(filename, alfvar=None, tag='', run='emcee'):
     """
     Master program to fit the absorption line spectrum, or indices,
     #  of a quiescent (>1 Gyr) stellar population
@@ -34,13 +43,12 @@ def alf(filename, alfvar=None):
     if alfvar is None:
         alfvar = pickle.load(open('../../alfvar_sspgrid_irldss3_imftype3.p', "rb" )) 
         
-        
     nmcmc = 100    # -- number of chain steps to print to file
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
     nburn = 100    # -- length of chain burn-in
-    nwalkers = 512    # -- number of walkers
+    nwalkers = 128    # -- number of walkers
     print_mcmc = 1; print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
 
     dopowell = 0  # -- start w/ powell minimization?
@@ -59,36 +67,13 @@ def alf(filename, alfvar=None):
     npar = alfvar.npar
     nfil = alfvar.nfil
 
-    mspec, mspecmw, lam = numpy.zeros((3, nl))
-    m2l, m2lmw = numpy.zeros((2, nfil))
-    oposarr, bposarr = numpy.zeros((2, npar))
-    mpiposarr = numpy.zeros((npar,nwalkers))
-    runtot = numpy.zeros((3,npar+2*nfil))
-    cl2p5,cl16,cl50,cl84,cl97p5 = numpy.zeros((5, npar+2*nfil))
-    xi = numpy.zeros((npar, npar))
-    mcmcpar = numpy.zeros((npar+2*nfil, nwalkers*nmcmc/nsample))
-
-    sortpos = numpy.zeros(nwalkers*nmcmc/nsample)
-
-    dumt = numpy.empty(2)
-    file=''; tag=''
-    bpos,tpos = PARAMS(), PARAMS(),
-
-    #REAL(DP)      :: sigma_indx,velz_indx
-    gdev, tflx = numpy.empty((2, ndat))
-    tmpindx = numpy.zeros((nmcindx,nindx))
-    #mspec_mcmc = numpy.zeros((nmcmc*nwalkers/nsample+1,nl))
-
-    # ---- variables for emcee
-    pos_emcee_in, pos_emcee_out = numpy.empty((2, npar, nwalkers))
-    lp_emcee_in, lp_emcee_out, lp_mpi = numpy.empty((3, nwalkers))
-    accept_emcee = numpy.zeros(nwalkers, dtype='i4')
-
-    # ---- variables for MPI
-    # ---- INTEGER :: ierr,taskid,ntasks,received_tag,status(MPI_STATUS_SIZE)
-    #KILL=99; BEGIN=0
-    #wait = True
-    #masterid=0
+    mspec, mspecmw, lam = np.zeros((3, nl))
+    m2l, m2lmw = np.zeros((2, nfil))
+    oposarr, bposarr = np.zeros((2, npar))
+    mpiposarr = np.zeros((npar,nwalkers))
+    runtot = np.zeros((3,npar+2*nfil))
+    cl2p5,cl16,cl50,cl84,cl97p5 = np.zeros((5, npar+2*nfil))
+    #mcmcpar = np.zeros((npar+2*nfil, nwalkers*nmcmc/nsample))
 
     #---------------------------------------------------------------!
     #---------------------------Setup-------------------------------!
@@ -98,7 +83,7 @@ def alf(filename, alfvar=None):
 
     # ---- flag determining the level of complexity
     # ---- 0=full, 1=simple, 2=super-simple.  See sfvars for details
-    alfvar.fit_type = 1
+    alfvar.fit_type = 0
 
     # ---- fit h3 and h4 parameters
     alfvar.fit_hermite = 0
@@ -143,7 +128,7 @@ def alf(filename, alfvar=None):
         alfvar.fit_trans = 0
         prhi.logtrans = -5.0
         prhi.logsky   = -5.0
-    else
+    else:
         alfvar.fit_trans = 1
         """
         # ---- extra smoothing to the transmission spectrum.
@@ -164,20 +149,6 @@ def alf(filename, alfvar=None):
         alfvar.mwimf=1
 
     #---------------------------------------------------------------!
-    # ---- CHECK
-    # ---- Initialize MPI, and get the total number of processes and
-    # ---- your process number
-    #CALL MPI_INIT( ierr )
-    #CALL MPI_COMM_RANK( MPI_COMM_WORLD, taskid, ierr )
-    #CALL MPI_COMM_SIZE( MPI_COMM_WORLD, ntasks, ierr )
-
-    # ---- initialize the random number generator
-    # ---- set each task to sleep for a different length of time
-    # ---- so that each task has its own unique random number seed
-    #CALL SLEEP(taskid)
-    #CALL INIT_RANDOM_SEED()
-    # CHECK
-    #---------------------------------------------------------------!
 
     if filename is None:
         print('ALF ERROR: You need to specify an input file')
@@ -189,93 +160,43 @@ def alf(filename, alfvar=None):
             tag = teminput[1]
 
 
-    if (taskid == masterid):
-        # ---- write some important variables to screen
-        print(" ************************************")
-        if alfvar.fit_indices == 1:
-            print(" ***********Index Fitter*************")
-        else:
-            print(" **********Spectral Fitter***********")
-        print(" ************************************")
-        print("   ssp_type  =", alfvar.ssp_type)
-        print("   fit_type  =", alfvar.fit_type)
-        print("   imf_type  =", alfvar.imf_type)
-        print(" fit_hermite =", alf.fit_hermite)
-        print("fit_two_ages =", alfvar.fit_two_ages)
-        if alfvar.imf_type == 4:
-            print("   nonpimf   =", alfvar.nonpimf_alpha)
-        print("  obs_frame  =",  alfvar.observed_frame)
-        print("      mwimf  =",  alfvar.mwimf)
-        print("  age-dep Rf =",  alfvar.use_age_dep_resp_fcns)
-        print("    Z-dep Rf =",  alfvar.use_z_dep_resp_fcns)
-        print("  Nwalkers   = ",  nwalkers)
-        print("  Nburn      = ",  nburn)
-        print("  Nchain     = ",  nmcmc)
-        print("  Ncores     = ",  ntasks)
-        print("  filename   = ",  filename, ' ', tag)
-        print(" ************************************")
-        print('\n\nStart Time ',datetime.now())
+    # ---- write some important variables to screen
+    print(" ************************************")
+    if alfvar.fit_indices == 1:
+        print(" ***********Index Fitter*************")
+    else:
+        print(" **********Spectral Fitter***********")
+    print(" ************************************")
+    print("   ssp_type  =", alfvar.ssp_type)
+    print("   fit_type  =", alfvar.fit_type)
+    print("   imf_type  =", alfvar.imf_type)
+    print(" fit_hermite =", alfvar.fit_hermite)
+    print("fit_two_ages =", alfvar.fit_two_ages)
+    if alfvar.imf_type == 4:
+        print("   nonpimf   =", alfvar.nonpimf_alpha)
+    print("  obs_frame  =",  alfvar.observed_frame)
+    print("      mwimf  =",  alfvar.mwimf)
+    print("  age-dep Rf =",  alfvar.use_age_dep_resp_fcns)
+    print("    Z-dep Rf =",  alfvar.use_z_dep_resp_fcns)
+    print("  Nwalkers   = ",  nwalkers)
+    print("  Nburn      = ",  nburn)
+    print("  Nchain     = ",  nmcmc)
+    #print("  Ncores     = ",  ntasks)
+    print("  filename   = ",  filename, ' ', tag)
+    print(" ************************************")
+    #print('\n\nStart Time ',datetime.now())
 
 
     #---------------------------------------------------------------!
     # ---- read in the data and wavelength boundaries
-    alf.filename = filename
-    alf.tag = tag    
-
-    #if alfvar.fit_indices == 1:
-    #    alfvar, sigma_indx, velz_indx = read_data(alfvar, sigma_indx, velz_indx)
-    #    #fold in the approx data sigma into the "instrumental"
-    #    alfvar.data.ires = np.sqrt(data.ires**2 + sigma_indx**2)
-    #    #read in the SSPs and bandpass filters
-    #    alfvar = setup(alfvar)
-    #    lam = sspgrid.lam
-    #    prhi.logemline_h    = -5.0
-    #    prhi.logemline_oii  = -5.0
-    #    prhi.logemline_oiii = -5.0
-    #    prhi.logemline_nii  = -5.0
-    #    prhi.logemline_sii  = -5.0
-    #    prhi.logemline_ni   = -5.0
-    #    prhi.loghot         = -5.0
-    #    prhi.logm7g         = -5.0
-    #    prhi.teff           =  2.0
-    #    prlo.teff           = -2.0
-    #    #we dont use velocities or dispersions here, so this
-    #    #should be unnecessary, but haven't tested turning them off yet.
-    #    prlo.velz           = -10.
-    #    prhi.velz           =  10.
-    #    prlo.sigma          = sigma_indx-10.
-    #    prhi.sigma          = sigma_indx+10.#
-
-    #    #de-redshift, monte carlo sample the noise, and compute indices
-    #    #NB: need to mask bad pixels!
-    #    for j in range()
-    #    DO j=1,nmcindx
-    #       CALL GASDEV(gdev(1:datmax))
-    #       tflx(1:datmax) = linterp(data(1:datmax)%lam/(1+velz_indx),&
-    #            data(1:datmax)%flx+gdev(1:datmax)*data(1:datmax)%err,&
-    #            data(1:datmax)%lam)
-    #       CALL GETINDX(data(1:datmax)%lam,tflx(1:datmax),tmpindx(j,:))
-    #     ENDDO
-
-    #    #compute mean indices and errors
-    #    DO j=1,nindx
-    #       IF (indx2fit(j).EQ.1) THEN
-    #          data_indx(j)%indx = SUM(tmpindx(:,j))/nmcindx
-    #          data_indx(j)%err  = SQRT( SUM(tmpindx(:,j)**2)/nmcindx - &
-    #               (SUM(tmpindx(:,j))/nmcindx)**2 )
-    #          !write(*,'(I2,2F6.2)') j,data_indx(j)%indx,data_indx(j)%err
-    #       ELSE
-    #          data_indx(j)%indx = 0.0
-    #          data_indx(j)%err  = 999.
-    #       ENDIF
-    #    ENDDO
-    #    nl_fit = nl
+    alfvar.filename = filename
+    alfvar.tag = tag    
 
 
-    if fit_indices == 0:
+    if alfvar.fit_indices == 0:
         alfvar = read_data(alfvar)
         # ---- read in the SSPs and bandpass filters
-        alfvar = setup(alfvar)
+        #alfvar = setup(alfvar)
         lam = np.copy(alfvar.sspgrid.lam)
 
         # ---- interpolate the sky emission model onto the observed wavelength grid
@@ -317,20 +238,23 @@ def alf(filename, alfvar=None):
 
     # ---- this is the master process
     # ---- estimate velz ---- #
-    if (fit_indices == 0):
-        print("  Fitting ",nlint," wavelength intervals")
-        if l2[nlint-1]>lam[nl-1] or l1[0]>lam[0]:
+    if (alfvar.fit_indices == 0):
+        print("  Fitting ",alfvar.nlint," wavelength intervals")
+        nlint = alfvar.nlint
+        l1, l2 = alfvar.l1, alfvar.l2
+        print('wavelength bourdaries: ', l1, l2)
+        if l2[-1]>np.nanmax(lam) or l1[0]<np.nanmin(lam):
             print('ERROR: wavelength boundaries exceed model wavelength grid')
             print(l2[nlint-1],lam[nl-1],l1[0],lam[0])
 
         # ---- make an initial estimate of the redshift
         print(' Fitting cz...')
         velz = getvelz(alfvar)
-        if velz > prlo.velz or velz > prhi.velz:
-            print('cz out of prior bounds, setting to 0.0')
+        if velz < prlo.velz or velz > prhi.velz:
+            print('cz', velz,' out of prior bounds, setting to 0.0')
             velz = 0.0
         opos.velz = velz
-        print("    cz= ",opos.velz," (z=",opos.velz/e5,")")
+        print("    cz= ",opos.velz," (z=",opos.velz/1e5,")")
 
         oposarr = str2arr(switch=1, instr=opos)
         
@@ -339,263 +263,73 @@ def alf(filename, alfvar=None):
         global_prloarr = copy.deepcopy(prloarr)
         global_prhiarr = copy.deepcopy(prhiarr)
         
+        global use_keys
+        use_keys = ['velz', 'sigma', 'logage', 'zh',]
+        print('\nWe are going to fit ', use_keys, '\n')
+        npar = len(use_keys)
+
+        #def log_prob(posarr):
+        #    return -0.5*func(global_alfvar, posarr, 
+        #                     prhiarr=global_prhiarr, 
+        #                     prloarr=global_prloarr, 
+        #                     usekeys=use_keys)
         def log_prob(posarr):
-            return -0.5*func(global_alfvar, posarr, 
+            ln_prior = lnprior(posarr, usekeys = use_keys, 
+                               prhiarr=global_prhiarr, prloarr=global_prloarr, 
+                               nested = False)
+            if not np.isfinite(ln_prior):
+                return -np.infty
+    
+            return ln_prior - 0.5*func(global_alfvar, posarr, 
                              prhiarr=global_prhiarr, 
-                             prloarr=global_prloarr)
-        
-        
+                             prloarr=global_prloarr, 
+                             usekeys=use_keys)
+
+           
         print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
         
+        nwalkers = 128
         pos_emcee_in = np.empty((nwalkers, npar))
         pos_emcee_in[:,:2] = oposarr[:2] + 10.0*(2.*np.random.rand(nwalkers, npar)[:,:2]-1.0)
-        pos_emcee_in[:,2:] = oposarr[2:] +  0.1*(2.*np.random.rand(nwalkers, npar)[:,2:]-1.0)
+        pos_emcee_in[:,2:npar] = oposarr[2:npar] +  0.1*(2.*np.random.rand(nwalkers, npar)[:,2:npar]-1.0)
         
-        
-        # ---- initialize the random number generator
-        # ---- why is this being done here again?
-        CALL INIT_RANDOM_SEED()
+        #backend = emcee.backends.HDFBackend("../test.h5")
+        #backend.reset(nwalkers, npar)
 
-        #---------------------------------------------------------------!
-        #-----------------------------MCMC------------------------------!
-        #---------------------------------------------------------------!
-        print(' Running emcee...')
-        CALL FLUSH()
-
-        # ---- initialize the walkers
-        for j in range(nwalkers):
-            opos,prlo,prhi = set_pinit_priors(velz=velz)
-            pos_emcee_in[:,j] = str2arr(switch=1, instr=opos)
-            if dopowell == 1:
-                """
-                #use the best-fit position from Powell, with small
-                #random offsets to set up all the walkers, but only
-                #do this for the params actually fit in Powell!
-                #the first two params are velz and sigma so give them
-                #larger variation.
-                """
-                for i in range(npowell):
-                    if i<=2:  wdth = 10.0
-                    if i>2: wdth = 0.1
-                    pos_emcee_in(i,j) = bposarr(i) + wdth*(2.*myran()-1.0)
-                    if pos_emcee_in[i,j] <= prloarr[i]:
-                        pos_emcee_in[i,j]=prloarr[i]+wdth
-                    if pos_emcee_in[i,j] >= prhiarr[i]:
-                        pos_emcee_in[i,j]=prhiarr[i]-wdth
-                        
-
-            # ---- Compute the initial log-probability for each walker
-            lp_emcee_in[j] = -0.5*func(pos_emcee_in[:, j])
-
-            # ---- check for initialization errors
-            if -2.*lp_emcee_in[j] >= huge_number/2.:
-                print('ALF ERROR: initial lnp out of bounds!', j)
-                for i in range(npar):
-                    if pos_emcee_in[i,j] > prhiarr[i] or pos_emcee_in[i,j] < prloarr[i]:
-                        print(i, pos_emcee_in(i,j), prloarr(i), prhiarr(i))
-
-
-        # ---- burn-in
-        print('   burning in...')
-        print('      Progress:')
-        for i in range(nburn):
-            CALL EMCEE_ADVANCE_MPI(npar,nwalkers,2.d0,pos_emcee_in,&
-             lp_emcee_in,pos_emcee_out,lp_emcee_out,accept_emcee,ntasks-1)
-            pos_emcee_in = pos_emcee_out
-            lp_emcee_in  = lp_emcee_out
-            if i == nburn/4.*1:
-                print(' ...25%')
-                CALL FLUSH()
-            if i == nburn/4.*2:
-                print( '...50%')
-                CALL FLUSH()
-            if i == nburn/4.*3:
-                print( '...75%')
-                CALL FLUSH()
-
-        print('...100%')
-        CALL FLUSH()
-
-        # ---- Run a production chain
-        print('   production run...')
-
-        if (print_mcmc == 1):
-            # ---- open output file
-            OPEN(12,FILE=TRIM(ALF_HOME)//TRIM(OUTDIR)//&
-                 TRIM(file)//TRIM(tag)//'.mcmc',STATUS='REPLACE')
-
-        for i in range(nmcmc):
-            CALL EMCEE_ADVANCE_MPI(npar,nwalkers,2.d0,pos_emcee_in,&
-             lp_emcee_in,pos_emcee_out,lp_emcee_out,accept_emcee,ntasks-1)
-            pos_emcee_in = pos_emcee_out
-            lp_emcee_in  = lp_emcee_out
-            totacc       = totacc + SUM(accept_emcee)
+        if run == 'emcee':
+            nmcmc = 1000
+            with Pool() as pool:
+                sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
+                start = time.time()
+                state = sampler.run_mcmc(pos_emcee_in, nmcmc, progress=True)
+                end = time.time()
+                multi_time = end - start
+                print("Multiprocessing took {0:.1f} seconds".format(multi_time))  
             
+            samples = sampler.get_chain()
+            pickle.dump(samples, open('../test_samples.p', "wb" ) )
             
-            for j in range(0, nwalkers, nsample):
-                opos = str2arr(switch=2, inarr=pos_emcee_in[:,j])
-
-
-                # ---- turn off various parameters for computing M/L
-                opos.logemline_h    = -8.0
-                opos.logemline_oii  = -8.0
-                opos.logemline_oiii = -8.0
-                opos.logemline_nii  = -8.0
-                opos.logemline_sii  = -8.0
-                opos.logemline_ni   = -8.0
-                opos.logtrans       = -8.0
-
-                # ---- compute the main sequence turn-off mass vs. t and Z
-                CALL GETMODEL(opos, mspecmw, mw=1)       #get spectrum for MW IMF
-                CALL GETM2L(lam, mspecmw, opos, m2lmw, mw=1)   #compute M/L_MW
-
-                if alfvar.mwimf ==0:
-                    CALL GETMODEL(opos,mspec)
-                    CALL GETM2L(lam,mspec,opos,m2l) # compute M/L
-                else:
-                    m2l   = m2lmw
-                    mspec = mspecmw
-
-
-                # ---- save each model spectrum
-                # ---- mspec_mcmc(1+j+(i-1)*nwalkers/nsample,:) = mspec
-
-                # ---- these parameters aren't actually being updated
-                if (fit_indices==1):
-                    pos_emcee_in[0,j] = 0.0
-                    pos_emcee_in[1,j] = sigma_indx
-
-                if (fit_type==1):
-                    pos_emcee_in[nparsimp:,j] = 0.0
-                elif fit_type ==2:
-                    pos_emcee_in[npowell:,j] = 0.
-
-                    
-                if (print_mcmc==1):
-                # ---- !write the chain element to file
-                    WRITE(12,'(ES12.5,1x,99(F11.4,1x))') &
-                       -2.0*lp_emcee_in(j),pos_emcee_in(:,j),m2l,m2lmw
-
-                # ---- keep the model with the lowest chi2
-                if (-2.0*lp_emcee_in[j]<minchi2):
-                    bposarr = pos_emcee_in[:,j]
-                    minchi2 = -2.0*lp_emcee_in[j]
-
-
-                CALL UPDATE_RUNTOT(runtot,pos_emcee_in(:,j),m2l,m2lmw)
-
-                # ---- save each chain element
-                mcmcpar(1:npar,j+(i-1)*nwalkers/nsample) = pos_emcee_in(:,j)
-                mcmcpar(npar+1:npar+nfil,j+(i-1)*nwalkers/nsample)        = m2l
-                mcmcpar(npar+nfil+1:npar+2*nfil,j+(i-1)*nwalkers/nsample) = m2lmw
-
-
-
-        IF (print_mcmc==1) CLOSE(12)
-
-        # ---- save the best position to the structure
-        bpos = str2arr(switch=2, inarr=bposarr)
-        bpos.chi2 = minchi2
-
-        # ---- compute CLs
-        for i in range(npar+2*nfil):
-            sortpos = mcmcpar[i,:]
-            CALL SORT(sortpos)
-            cl2p5(i)  = sortpos(INT(0.025*nwalkers*nmcmc/nsample))
-            cl16(i)   = sortpos(INT(0.160*nwalkers*nmcmc/nsample))
-            cl50(i)   = sortpos(INT(0.500*nwalkers*nmcmc/nsample))
-            cl84(i)   = sortpos(INT(0.840*nwalkers*nmcmc/nsample))
-            cl97p5(i) = sortpos(INT(0.975*nwalkers*nmcmc/nsample))
-
-
-        CALL DATE_AND_TIME(TIME=time)
-        CALL DTIME(dumt,time2)
-        print( 'End Time   '//time(1:2)//':'//time(3:4))
-        print(" Elapsed Time: ",time2/3600.," hr")
-        print("  facc: ",REAL(totacc)/REAL(nmcmc*nwalkers))
-
-
-        #---------------------------------------------------------------!
-        #--------------------Write results to file----------------------!
-        #---------------------------------------------------------------!
-
-       #write a binary file of the production chain spectra
-       #if (print_mcmc_spec==1):
-       #  mspec_mcmc(1,:) = lam
-       #  OPEN(11,FILE=TRIM(ALF_HOME)//TRIM(OUTDIR)//&
-       #       TRIM(file)//TRIM(tag)//'.spec',FORM='UNFORMATTED',&
-       #       STATUS='REPLACE',access='DIRECT',&
-       #       recl=(1+nmcmc*nwalkers/nsample)*nl*4)
-       #  WRITE(11,rec=1) mspec_mcmc
-       #  CLOSE(11)
+        elif run == 'dynesty':
+            def prior_transform(unit_coords, usekeys = use_keys,
+                    prhiarr=global_prhiarr, prloarr=global_prloarr):    
+                theta = np.empty((len(unit_coords)))
+                key_arr = np.array(['velz', 'sigma', 'logage', 'zh', 'feh', 
+                        'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
+                        'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
+                            'teff','imf1','imf2','logfy','sigma2','velz2',
+                            'logm7g','hotteff','loghot','fy_logage',
+                            'logemline_h','logemline_oii','logemline_oiii',
+                            'logemline_sii','logemline_ni','logemline_nii',
+                            'logtrans','jitter','logsky', 'imf3','imf4','h3','h4'])
     
-    bposarr = str2arr(switch =1, instr=bpos)
-    fret = func(bposarr, spec=mspefc, alfvar=alfvar, funit=13)
-    f13name = '{0}results/{1}_{2}.bestspec'.format(ALF_HOME, file, tag)
-    np.savetxt(alfname, np.transpose([lam, zmspec]), 
-               delimiter="     ", 
-               fmt='   %12.4f   %12.4E')
-
-     OPEN(13,FILE=TRIM(ALF_HOME)//TRIM(OUTDIR)//&
-          TRIM(file)//TRIM(tag)//'.bestspec',STATUS='REPLACE')
-     CALL STR2ARR(1,bpos,bposarr)
-     #NB: the model written to file has the lowest chi^2
-     fret = func(bposarr,spec=mspec,funit=13)
-     CLOSE(13)
-
-     #write mean of the posterior distributions
-     OPEN(14,FILE=TRIM(ALF_HOME)//TRIM(OUTDIR)//&
-          TRIM(file)//TRIM(tag)//'.sum',STATUS='REPLACE')
-     WRITE(14,'("#   Elapsed Time: ",F6.2," hr")') time2/3600.
-     WRITE(14,'("#    ssp_type  =",A4)') alfvar.ssp_type
-     WRITE(14,'("#    fit_type  =",I2)') alfvar.fit_type
-     WRITE(14,'("#    imf_type  =",I2)') alfvar.imf_type
-     WRITE(14,'("#  fit_hermite =",I2)') fit_hermite
-     WRITE(14,'("# fit_two_ages =",I2)') fit_two_ages
-     WRITE(14,'("#     nonpimf  =",I2)') nonpimf_alpha
-     WRITE(14,'("#   obs_frame  =",I2)') observed_frame
-     WRITE(14,'("#    fit_poly  =",I2)') fit_poly
-     WRITE(14,'("#       mwimf  =",I2)') mwimf
-     WRITE(14,'("#   age-dep Rf =",I2)') use_age_dep_resp_fcns
-     WRITE(14,'("#     Z-dep Rf =",I2)') use_z_dep_resp_fcns
-     WRITE(14,'("#   Nwalkers   = ",I6)') nwalkers
-     WRITE(14,'("#   Nburn      = ",I6)') nburn
-     WRITE(14,'("#   Nchain     = ",I6)') nmcmc
-     WRITE(14,'("#   Nsample    = ",I6)') nsample
-     WRITE(14,'("#   Nwave      = ",I6)') nl
-     WRITE(14,'("#   Ncores     = ",I6)') ntasks
-     WRITE(14,'("#   facc: ",F6.3)') REAL(totacc)/REAL(nmcmc*nwalkers)
-     WRITE(14,'("#   rows: mean posterior, pos(chi^2_min), 1 sigma errors, '//&
-          '2.5%, 16%, 50%, 84%, 97.5% CL, lower priors, upper priors ")')
-
-     #write mean of posteriors
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') bpos%chi2,runtot(2,:)/runtot(1,:)
-
-     #write position where chi^2=min
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') bpos%chi2,bposarr,m2l*0.0,m2lmw*0.0
-
-     #write 1 sigma errors
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0, &
-          SQRT( runtot(3,:)/runtot(1,:) - runtot(2,:)**2/runtot(1,:)**2 )
-
-     #write 2.5%, 16%, 50%, 84%, 97.5% CL
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0, cl2p5
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0, cl16
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0, cl50
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0, cl84
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0, cl97p5
-     #write lower/upper priors
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0,prloarr,m2l*0.0,m2lmw*0.0
-     WRITE(14,'(ES12.5,1x,99(F11.4,1x))') 0.0,prhiarr,m2l*0.0,m2lmw*0.0
-
-     CLOSE(14)
-
-     WRITE(*,*)
-     WRITE(*,'(" ************************************")')
-
-     #break the workers out of their event loops so they can close
-     CALL FREE_WORKERS(ntasks-1)
-
-  ENDIF
-
-  CALL MPI_FINALIZE(ierr)
+                for i, ikey in enumerate(usekeys):
+                    ind = np.where(key_arr==ikey)
+                    a = TopHat(prloarr[ind].item(), prhiarr[ind].item())
+                    theta[i] = a.unit_transform(unit_coords[i])
+                return theta    
+            
+            dsampler = dynesty.DynamicNestedSampler(log_prob, prior_transform, 
+                                        len(use_keys), nlive=1000)
+            dsampler.run_nested(maxiter = 1000)
+            res1 = dsampler.results
+ 

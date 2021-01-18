@@ -102,6 +102,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     if (pr > tiny_number):
         # ---- !get a new model spectrum
         mspec = getmodel(npos, alfvar=alfvar)
+        if np.nanstd(mspec)==0:
+            return np.inf
     else:
         return np.inf
      

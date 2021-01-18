@@ -19,11 +19,10 @@ from contextlib import closing
 # -------------------------------------------------------- #
 global use_keys
 use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh',
-            'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
-            'teff','imf1','imf2','logfy','sigma2','velz2',
-            'logm7g','hotteff','loghot','fy_logage',
+            'ah', 'ch', 'nh','nah','mgh','sih','cah','tih',
+            'teff','imf1','imf2',
+            'logm7g','hotteff','loghot',
             'logemline_h','logemline_oii','logemline_oiii',
-            'logemline_sii','logemline_ni','logemline_nii',
             'logtrans','jitter','logsky', 'imf3']
 
 
@@ -117,7 +116,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             print('\nPickle loading alf model array: '+model_arr+'\n')
             alfvar = pickle.load(open(model_arr, "rb" ))
         else:
-            pickle_model_name = 'pickle/alfvar_sspgrid_'+alfvar.filename+'_imftype'+str(alfvar.imf_type)+'.p'
+            pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
             print('No existing model array.  We will create one and pickle dump it to '+pickle_model_name)
             alfvar = ALFVAR()
 
@@ -281,7 +280,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             print('It took me 3hrs. Will work on it...')
             alfvar = setup(alfvar, onlybasic = False)
             os.system('mkdir -p pickle')
-            pickle_model_name = 'pickle/alfvar_sspgrid_'+alfvar.filename+'_imftype'+str(alfvar.imf_type)+'.p'
+            pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
             pickle.dump(alfvar, pickle_model_name)
         
         lam = np.copy(alfvar.sspgrid.lam)
@@ -446,10 +445,10 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
                 print('\ndone dynesty (initial) in {0}s'.format(ndur))
 
             results = dsampler.results
-            pickle.dump(results, open('../test_dynesty_res3.p', "wb" ) )
+            pickle.dump(results, open('../test_dynesty_res4.p', "wb" ) )
 
 
 
 # -------------------------------- #            
 alf('ldss3_dr246_n4055_Re4_wave6e', tag='', run='dynesty', 
-    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3_full.p')
+    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3.p')

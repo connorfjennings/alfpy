@@ -5,6 +5,7 @@ from linterp import *
 from add_response import add_response
 from getmass import getmass
 from alf_constants import *
+from str2arr import *
 
 __all__ = ['getmodel']
         
@@ -409,6 +410,10 @@ def getmodel(pos, alfvar = None, mw = 0):
 
 
     #velocity broaden the model
+    if np.nanstd(spec) == 0:
+        print('bad spec model, ', str2arr(1, instr = pos))
+        
+        
     if pos.sigma > 5. and alfvar.fit_indices==0:
         if alfvar.fit_hermite == 1:
             hermite[0] = pos.h3

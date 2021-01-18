@@ -115,7 +115,7 @@ def spec_from_sum(filename, alfvar=None, getsum = 'minchi2',
     #print('m2l=', m2l)
     
     #redshift the spectrum
-    oneplusz = (1+pos.velz/alfvar.clight*1e5)
+    oneplusz = (1+pos.velz/clight*1e5)
     zmspec   = linterp(lam*oneplusz, mspec, lam)
            
     if returnspec == True:

@@ -114,14 +114,14 @@ def set_pinit_priors(alfvar, velz=None):
         
     if imf_type <= 3:
         prlo.imf1 = 0.5
-        prhi.imf1 = 3.5  
         prlo.imf3 = 0.08
+        prhi.imf1 = 3.5  
         prhi.imf3 = 0.4
             
     else:
         prlo.imf1 = -5.0
-        prhi.imf1 = 3.0
         prlo.imf3 = -5.0
+        prhi.imf1 = 3.0
         prhi.imf3 = 3.0
         
     if imf_type in [0, 1, 3]:
@@ -144,12 +144,9 @@ def set_pinit_priors(alfvar, velz=None):
     #--------------------------------------------------------------------------!
     
     # ---- str->arr
-    #tprloarr1 = str2arr(switch = 1, instr = tprlo)
-    #tprhiarr1 = str2arr(switch = 1, instr = tprhi)
-    prloarr1 = str2arr(switch = 1, instr = prlo)
-    prhiarr1 = str2arr(switch = 1, instr = prhi)
-    #testarr1 = str2arr(switch = 1, instr = test)
-    posarr1 = str2arr(switch = 1, instr = pos)
+    #prloarr = str2arr(switch = 1, instr = prlo)
+    #prhiarr = str2arr(switch = 1, instr = prhi)
+    #posarr = str2arr(switch = 1, instr = pos)
 
     # ---- test the priors and if the priors have been altered then 
     # ---- re-initialize the parameters within the prior range
@@ -165,11 +162,10 @@ def set_pinit_priors(alfvar, velz=None):
     #        if posarr1[i] >= prhiarr1[i] or posarr1[i] <= prloarr1[9]:
     #            posarr1[i] = random.random()*(prhiarr1[i] - prloarr1[i]) + prloarr1[i]
                 
-    if velz is not None:
-        posarr1[0] = velz + 50*(random.random()*2.-1)
-        
+    #if velz is not None:
+    #    posarr1[0] = velz + 50*(random.random()*2.-1)   
     # ---- arr -> str
-    pos = str2arr(switch=2, inarr=posarr1)
+    #pos = str2arr(switch=2, inarr=posarr1)
     return pos, prlo, prhi
     
 

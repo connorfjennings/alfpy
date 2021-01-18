@@ -12,7 +12,7 @@ def write_a_model(alfvar = None):
     !write a model to file
     """
     if alfvar is None:
-        alfvar = pickle.load(open('../../alfvar_sspgrid_irldss3_imftype3.p', "rb" ))  
+        alfvar = pickle.load(open('../../alfvar_sspgrid_irldss3_imftype3_full.p', "rb" ))  
     
     nl = alfvar.nl
     pos = ALFPARAM()

@@ -1,7 +1,7 @@
 #from alf_vars import *
 import numpy as np
 
-__all__ = ['str2arr']
+__all__ = ['str2arr', 'fill_param']
 
 
 key_list = ['velz', 'sigma', 'logage', 'zh', 'feh', 
@@ -12,6 +12,8 @@ key_list = ['velz', 'sigma', 'logage', 'zh', 'feh',
                 'logemline_h','logemline_oii','logemline_oiii',
                 'logemline_sii','logemline_ni','logemline_nii',
                 'logtrans','jitter','logsky', 'imf3','imf4','h3','h4']
+
+key_arr = np.array(key_list)
 
 default_arr = np.array([0.0, 11.0, 1.0, 0.0, 0.0,0.0,0.0,0.0, 0.0, 0.0,  
                         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -25,7 +27,7 @@ class alfobj(object):
     def __init__(self):
         self.__dict__ = dict(zip(key_list, default_arr))
     
-    
+# ---------------- #    
 def str2arr(switch, instr=None, inarr=None, usekeys = key_list):
     """
     routine to dump the information in the parameteter 
@@ -38,9 +40,7 @@ def str2arr(switch, instr=None, inarr=None, usekeys = key_list):
     - 1. str->arr
     - 2. arr->str
     """
-    
     if switch == 1 and instr is not None:
-        key_arr = np.array(key_list)
         res = np.copy(default_arr)
         for i, ikey in enumerate(usekeys):
             # 0-3: the super-simple and Powell-mode parameters
@@ -49,8 +49,30 @@ def str2arr(switch, instr=None, inarr=None, usekeys = key_list):
             res[np.where(key_arr==ikey)] = getattr(instr, ikey) 
             
             
-    elif switch==2 and inarr is not None:   
-        res = alfobj()    
-        for i, ikey in enumerate(usekeys):   
-            res.__setattr__(ikey, inarr[i])                
+    elif switch==2 and inarr is not None:
+        """
+        inarr has to have ndim=alfvar.npar
+        """
+        res = alfobj() 
+        res.__dict__ = dict(zip(key_list, inarr))
+        #for i, ikey in enumerate(key_list):   
+        #    res.__setattr__(ikey, inarr[i])                
+    return res
+
+
+
+# ---------------- #
+def fill_param(inarr, usekeys = key_list):
+    """
+    only works for len(inarr) = len(usekeys)
+    """
+    res = np.copy(default_arr)
+    
+    if len(inarr) == len(key_list):
+        for i, ikey in enumerate(usekeys):
+            res[np.where(key_arr==ikey)] = inarr[np.where(key_arr==ikey)] 
+            
+    elif len(inarr) == len(usekeys):
+        for i, ikey in enumerate(usekeys):
+            res[np.where(key_arr==ikey)] = inarr[i]  
     return res

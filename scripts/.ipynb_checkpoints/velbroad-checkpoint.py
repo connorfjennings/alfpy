@@ -42,7 +42,7 @@ def velbroad_notfast(wave, spec, sigma, minl=None, maxl=None):
 
 
 #-------------------------------------------------------------------------!
-def velbroad(lam_, spec_, sigma, minl=None, maxl=None, 
+def velbroad(lam, spec, sigma, minl=None, maxl=None, 
              ires=None, velbroad_simple = 1, alfvar=None):
     """
     !routine to compute velocity broadening of an input spectrum
@@ -64,8 +64,8 @@ def velbroad(lam_, spec_, sigma, minl=None, maxl=None,
     - OUTPUTS:
         spec
     """
-    lam = np.copy(lam_)
-    spec = np.copy(spec_)
+    lam = np.copy(lam)
+    spec = np.copy(spec)
     
     if minl ==None:
         minl = np.nanmin(lam)

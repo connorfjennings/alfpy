@@ -1,6 +1,7 @@
 import os, numpy as np
 from astropy.io import ascii as astro_ascii
 from linterp import linterp
+from alf_constants import *
 
 """
 read in and set up all the arrays
@@ -42,12 +43,12 @@ def setup(alfvar, onlybasic = False):
 
     # -- correction factor between Salpeter, Kroupa and flat intrabin weights
     # -- for non-parametric IMF
-    
+
     if alfvar.nonpimf_alpha == 0:
         alfvar.corr_bin_weight[:] = 0.0
         alfvar.npi_alphav[:]      = 0.0
         alfvar.npi_renorm[:]      = 1.0
-        
+
     elif alfvar.nonpimf_alpha == 1:
         alfvar.corr_bin_weight = np.array([1.455, 1.093, 0.898, 0.755, 0.602,
                                            0.434, 0.290, 0.164, 0.053])
@@ -55,7 +56,7 @@ def setup(alfvar, onlybasic = False):
                                       2.3, 2.3, 2.3, 2.3])
         alfvar.npi_renorm = np.array([2.0, 2.0, 2.0, 2.0, 1.0,
                                       1.0, 1.0, 1.0, 1.0])
-        
+
     elif alfvar.nonpimf_alpha == 2:
         alfvar.corr_bin_weight = np.array([2.122, 1.438, 1.083, 0.822, 0.615,
                                            0.443, 0.296, 0.168, 0.054])
@@ -71,8 +72,8 @@ def setup(alfvar, onlybasic = False):
     chart  = ['t01.0','t03.0','t05.0','t07.0','t09.0','t11.0','t13.5']
     chart2 = ['t01','t03','t05','t09','t13']
 
-    alfvar.sspgrid.logssp[:]  = alfvar.tiny_number
-    alfvar.sspgrid.logsspm[:]  = alfvar.tiny_number
+    alfvar.sspgrid.logssp[:]  = tiny_number
+    alfvar.sspgrid.logsspm[:]  = tiny_number
 
     # -- if the data has not been read in, then we need to manually
     # -- define the lower and upper limits for the instrumental resolution
@@ -109,7 +110,7 @@ def setup(alfvar, onlybasic = False):
     for k in range(alfvar.nzmet):
         for j in range(alfvar.nage_rfcn):
             filename = "{0}infiles/atlas_ssp_{1}_Z{2}.abund."\
-            "{3}.s100".format(ALF_HOME, chart2[j], charz[k], alfvar.atlas_imf)        
+            "{3}.s100".format(ALF_HOME, chart2[j], charz[k], alfvar.atlas_imf)
             f20 = np.loadtxt(filename)
 
             for icol, iattr in enumerate(f20_read_dict_attr):
@@ -182,12 +183,12 @@ def setup(alfvar, onlybasic = False):
     print('begin: read in two parameter IMF models')
     for z in range(alfvar.nzmet):
         for t in range(alfvar.nage):
-            
+
             if alfvar.ssp_type == 'vcj':
                 filename = "{0}infiles/VCJ_v8_mcut0.08_{1}"\
                 "_Z{2}.ssp.imf_varydoublex.s100".format(ALF_HOME, chart[t], charz[z])
                 f22 = np.loadtxt(filename)
-                
+
             else:
                 filename = "{0}infiles/CvD_v8_mcut0.08_{1}"\
                 "_Zp0.0.ssp.imf_varydoublex.s100".format(ALF_HOME, chart[t])
@@ -228,7 +229,7 @@ def setup(alfvar, onlybasic = False):
     if alfvar.imf_type == 4:
         for z in range(alfvar.nzmet):
             for t in range(alfvar.nage):
-                
+
                 if alfvar.nonpimf_alpha ==0:
                     f22 = np.loadtxt("{0}infiles/VCJ_v8_{1}_Z{2}"\
                                      ".ssp.imf_nonpara_flat.s100".format(ALF_HOME,chart[t],charz[z])
@@ -236,11 +237,11 @@ def setup(alfvar, onlybasic = False):
                 elif alfvar.nonpimf_alpha == 1:
                     f22 = np.loadtxt("{0}infiles/VCJ_v8_{1}_Z{2}"\
                                      ".ssp.imf_nonpara_krpa.s100".format(ALF_HOME,chart[t],charz[z]))
-                    
+
                 elif alfvar.nonpimf_alpha == 2:
                     f22 = np.loadtxt("{0}infiles/VCJ_v8_{1}_Z{2}"\
                                      ".ssp.imf_nonpara_x2.3.s100".format(ALF_HOME,chart[t],charz[z]))
-                    
+
                 else:
                     print('SETUP ERROR: nonpimf_alpha=',nonpimf_alpha)
 
@@ -329,20 +330,23 @@ def setup(alfvar, onlybasic = False):
     ftrans_o2 = np.copy(f29[:, 2])
 
 
-    #smooth the trans curve here before interpolation to the main grid
+    # ---- smooth the trans curve here before interpolation to the main grid
     datmax = alfvar.datmax
-    if np.nanmax(alfvar.data.ires) >0: # CHECK
+    data_ires_max = np.nanmax(alfvar.data.ires)
+    if  data_ires_max > 0: # CHECK
         strans = linterp(xin = alfvar.data.lam,
                          yin = alfvar.data.ires,
                          xout = ltrans)
-        strans = min(max(np.nanmax(strans),0.0),np.nanmax(alfvar.data.ires))
+        strans[np.where(strans<0)] = 0
+        strans[np.where(strans>data_ires_max)] = data_ires_max
     else:
         # -- force the instrumental resolution to 100 km/s if not explicitly set
         # -- only done here b/c the transmission function is tabulated at high res
         strans = 100.0
 
     # -- add all the terms in quad, including a floor of 10 km/s
-    strans = np.sqrt(strans**2 + alfvar.smooth_trans**2 + 10.**2)
+    strans = np.sqrt(np.square(strans) + np.square(alfvar.smooth_trans) + 10**2)
+    
     # -- use the simple version which allows for arrays of arbitrary length
     d1 = alfvar.velbroad_simple
     ftrans_h2o = velbroad(lam = ltrans, spec = ftrans_h2o,
@@ -373,11 +377,13 @@ def setup(alfvar, onlybasic = False):
         print('SETUP ERROR: sky lines file not found')
 
 
-    #smooth by the instrumental resolution
-    #use the simple version which allows for arrays of arbitrary length
+    # ---- smooth by the instrumental resolution
+    # ---- use the simple version which allows for arrays of arbitrary length
+    
+    strans_ = linterp(ltrans, strans, alfvar.lsky)
     alfvar.fsky = velbroad(lam = alfvar.lsky, spec = alfvar.fsky,
                            sigma = sig0, minl = lamlo, maxl = lamhi,
-                           ires = strans, velbroad_simple =1)
+                           ires = strans_, velbroad_simple =1)
     alfvar.fsky = alfvar.fsky / np.nanmax(alfvar.fsky)
 
     #-------------------------------------------------------------------------!
@@ -425,11 +431,11 @@ def setup(alfvar, onlybasic = False):
                                       alfvar.sspgrid.m7g,
                                       sig0, lamlo, lamhi, smooth,
                                       velbroad_simple = 1)
-        
+
 
         # ---- smooth the standard two-part power-law IMF models ---- #
         print('-------- smooth the standard two-part power-law IMF models')
-        
+
         for index, xarr in np.ndenumerate(alfvar.sspgrid.logssp[0]):
             k, j, t, z = index
             alfvar.sspgrid.logssp[:,k,j,t,z] = velbroad(alfvar.sspgrid.lam,
@@ -455,7 +461,7 @@ def setup(alfvar, onlybasic = False):
                                                                alfvar.sspgrid.logsspm[:,k,j,t,m,z],
                                                                sig0,lamlo,lamhi,smooth,
                                                                velbroad_simple = 1)
-                
+
             #for z in range(alfvar.nzmet3):
             #    for m in range(alfvar.nmcut):
             #        for t in range(alfvar.nage):
@@ -484,8 +490,8 @@ def setup(alfvar, onlybasic = False):
             #                                                     velbroad_simple = 1)
 
 
-    alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + alfvar.tiny_number)
-    alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + alfvar.tiny_number)
+    alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)
+    alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + tiny_number)
 
     #----------------------------------------------------------------!
     #-----------------read in index definitions----------------------!

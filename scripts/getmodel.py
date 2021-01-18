@@ -18,7 +18,7 @@ def getmodel(pos, alfvar = None, mw = 0):
     """
     
     if alfvar is None:
-        alfvar = pickle.load(open('../../alfvar_sspgrid_irldss3_imftype3.p', "rb" )) 
+        alfvar = pickle.load(open('../pickle/alfvar_sspgrid_irldss3_imftype3_full.p', "rb" )) 
     #sspgrid = copy.deepcopy(alfvar.sspgrid)
     sspgrid = alfvar.sspgrid
     

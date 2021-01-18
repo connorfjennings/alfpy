@@ -44,8 +44,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     # ---------------------------------------------------------------- #    
     if prhiarr is None or prloarr is None:
         _, prlo, prhi = set_pinit_priors(alfvar)
-        prloarr = str2arr(switch=1, instr = prlo, usekeys = usekeys)
-        prhiarr = str2arr(switch=1, instr = prhi, usekeys = usekeys)
+        prloarr = str2arr(switch=1, instr = prlo)
+        prhiarr = str2arr(switch=1, instr = prhi)
     
     # ---------------------------------------------------------------- #
     func_val = 0.0
@@ -59,8 +59,10 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     #else:
     #    tposarr = np.copy(nposarr)
     
-    npos = str2arr(2, inarr = in_posarr, usekeys=usekeys) #arr->str
-    nposarr = str2arr(1, instr = npos, usekeys=usekeys)
+    #npos = str2arr(2, inarr = in_posarr, usekeys=usekeys) #arr->str
+    #nposarr = str2arr(1, instr = npos, usekeys=usekeys)
+    nposarr = fill_param(in_posarr, usekeys = usekeys)
+    npos = str2arr(2, inarr = nposarr)
     # ---------------------------------------------------------------- #
     # ---- !compute priors (don't count all the priors if fitting
     # ---- !in (super) simple mode or in powell fitting mode)
@@ -197,20 +199,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                     print(funit, data.lam[j],mflx[j],
                           data.flx[j],data.flx[j]/terr[j],poly[j],data.err[j])
 
-    #else:
-        #!compute indices
-        #CALL GETINDX(sspgrid%lam,mspec,mindx)
-        #!compute chi^2 for the indices
-        #func_val = np.nansum( (data_indx%indx-mindx)**2/data_indx%err**2 )
-
-        #if funit is not None:
-        #    for j in range(nindx):
-        #        print(funit,'(F8.2,3F9.4)') (indxdef(1,j)+indxdef(2,j))/2.,&
-        #           mindx(j),data_indx(j)%indx,data_indx(j)%err
-
-
     # #!include priors (func_val is chi^2)
-    # use priors.py
+    # ---- use priors.py instead
     # if (pr <= tiny_number):
     #     func_val = huge_number 
     # else: 

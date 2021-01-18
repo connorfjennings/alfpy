@@ -1,7 +1,6 @@
 from alf_vars import *
 from linterp import *
 from contnormspec import *
-from velbroad import *
 from alf_constants import *
 import copy, numpy as np
 
@@ -40,7 +39,7 @@ def getvelz(alfvar):
         # ---- !de-redshift the data and interpolate to model wave array
         # ---- !NB: this is the old way of doing things, compare with func.f90
         
-        data.lam0 = data.lam/(1.+tvz[i]/alfvar.clight*1e5)
+        data.lam0 = data.lam/(1.+tvz[i]/clight*1e5)
         iidata.flx = linterp(data.lam0, data.flx, sspgrid.lam)
         iidata.err = linterp(data.lam0, data.err, sspgrid.lam)
 

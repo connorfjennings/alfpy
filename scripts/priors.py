@@ -2,7 +2,9 @@
 
 import numpy as np
 import scipy.stats 
-from str2arr import str2arr
+from str2arr import *
+from alf_constants import *
+from set_pinit_priors import *
 
 __all__ = ['TopHat']
 
@@ -108,19 +110,8 @@ class TopHat(object):
     
     
 # -------------------------------- #
-def lnprior(in_arr, usekeys, prhiarr, prloarr, nested=False):
-    in_pos = str2arr(2, inarr = in_arr, usekeys=usekeys)
-    in_pos_arr = str2arr(1, instr = in_pos, usekeys=usekeys)        
-    allprior = []
-    for i in range(len(in_arr)):
-        a = TopHat(prloarr[i], prhiarr[i])
-        allprior.append(a.lnp(in_arr[i]))
-        
-    lnp = np.nansum(allprior)
-    if nested and np.isfinite(lnp):
-        return 0.0
-    return lnp
 
 
 
-# -------------------------------- #
+
+

@@ -13,4 +13,5 @@
 * packages required: 
     - numpy, emcee, time multiprocessing, dynesty, contextlib,
     - pickle
+* todos: check indexing, locate, speed up velbroad, mpi, etc
 

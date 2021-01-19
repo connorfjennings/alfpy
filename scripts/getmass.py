@@ -1,5 +1,5 @@
-import copy, numpy as np
-from alf_vars import *
+import numpy as np
+#from alf_vars import *
 
 def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
     """
@@ -25,11 +25,24 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
         print('GETMASS ERROR: mlo>m2: %.2e, %.2e' %(mlo, m2))
         return getmass, np.nan
     
-    alfvar = ALFVAR()
-    imflo, imfhi = alfvar.imflo, alfvar.imfhi
-    imf5 = alfvar.imf5
-    mbin_nimf9 = np.copy(alfvar.mbin_nimf9)
-    npi_alphav = np.copy(alfvar.npi_alphav)
+    #alfvar = ALFVAR()
+    #imflo, imfhi = alfvar.imflo, alfvar.imfhi
+    imflo, imfhi = 0.08, 100.0
+    #imf5 = alfvar.imf5
+    imf5 = 0.0
+    #mbin_nimf9 = np.copy(alfvar.mbin_nimf9)
+    mbin_nimf9 = np.array([0.08,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0])
+    #npi_alphav = np.copy(alfvar.npi_alphav)
+    
+    # for nonpimf_alfpha = 1, 
+    # i.e., IMF power-law slope within each bin for non-paramtric IMF is kroupa
+    npi_alphav = np.array([1.3, 1.3, 1.3, 1.3, 2.3,2.3, 2.3, 2.3, 2.3])
+    npi_renorm = np.array([2.0, 2.0, 2.0, 2.0, 1.0,1.0, 1.0, 1.0, 1.0])
+    # for nonpimf_alfpha = 2, 
+    # i.e., IMF power-law slope within each bin for non-paramtric IMF is Salpeter
+    npi_alphav[:] = 2.3
+    npi_renorm[:] = 1.0
+    
     
     bhlim = 40.0; nslim = 8.5
     m2 = 0.5; m3 = 1.0
@@ -89,7 +102,7 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
         #non-parametric IMF
         #mbin_nimf = (/0.2,0.4,0.6,0.8,1.0/)
         #mbin_nimf = np.array([0.2,0.4,0.6,0.8,1.0])
-        alpha2 = 2.0 - alfvar.npi_alphav
+        alpha2 = 2.0 - npi_alphav
         imfw[1-1] = 10**imf1 
         imfw[2-1] = 10**((imf2+imf1)/2.)
         imfw[3-1] = 10**imf2
@@ -101,7 +114,7 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
         imfw[9-1] = 10**imf5
         
         for i in range(nimfnp):
-            imfw[i] *= alfvar.npi_renorm[i]
+            imfw[i] *= npi_renorm[i]
             
         imfnorm = 0.0
         for i in range(nimfnp):

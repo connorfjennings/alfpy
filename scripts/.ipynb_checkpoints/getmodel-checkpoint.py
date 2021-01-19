@@ -121,7 +121,7 @@ def getmodel(pos, alfvar = None, mw = 0):
                     (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3,vm3] + \
                     dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3])
 
-            spec = 10**(dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
+            spec = np.power(10, dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
 
             
         elif alfvar.imf_type==0 or alfvar.imf_type==1:
@@ -147,10 +147,7 @@ def getmodel(pos, alfvar = None, mw = 0):
                     (1-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt,vm] + 
                     dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt,vm])
 
-            spec = 10**(dt*dm*tmp1 + 
-                        (1.0-dt)*dm*tmp2 + 
-                        dt*(1.0-dm)*tmp3 + 
-                        (1.0-dt)*(1.0-dm)*tmp4 )
+            spec = np.power(10,dt*dm*tmp1 + (1.0-dt)*dm*tmp2 + dt*(1.0-dm)*tmp3 +(1.0-dt)*(1.0-dm)*tmp4 )
 
             
         elif alfvar.imf_type == 4:
@@ -221,7 +218,7 @@ def getmodel(pos, alfvar = None, mw = 0):
     else:
         # ---- compute a Kroupa IMF, line196
         #print('get kroupa:', dt, dm, vt, vm)
-        spec = 10**(dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
+        spec = np.power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
                     (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
                     dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
                     (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
@@ -432,8 +429,8 @@ def getmodel(pos, alfvar = None, mw = 0):
         tmp_ltrans     = sspgrid.lam / (1+pos.velz/clight*1e5)
         tmp_ftrans_h2o = linterp(tmp_ltrans, sspgrid.atm_trans_h2o, sspgrid.lam)
         tmp_ftrans_o2  = linterp(tmp_ltrans, sspgrid.atm_trans_o2, sspgrid.lam)
-        spec = spec * (1.+(tmp_ftrans_h2o-1)*10**pos.logtrans)
-        spec = spec * (1.+(tmp_ftrans_o2-1)*10**pos.logtrans)
+        spec = spec * (1.+(tmp_ftrans_h2o-1)*np.power(10,pos.logtrans))
+        spec = spec * (1.+(tmp_ftrans_o2-1)*np.power(10,pos.logtrans))
 
     #apply a template error function
     if alfvar.apply_temperrfcn==1:

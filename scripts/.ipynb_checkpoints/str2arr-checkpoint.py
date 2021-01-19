@@ -42,21 +42,16 @@ def str2arr(switch, instr=None, inarr=None, usekeys = key_list):
     """
     if switch == 1 and instr is not None:
         res = np.copy(default_arr)
-        for i, ikey in enumerate(usekeys):
-            # 0-3: the super-simple and Powell-mode parameters
-            # 4=13: end of the simple model parameters
-            #ind = np.where(key_list==ikey)
-            res[np.where(key_arr==ikey)] = getattr(instr, ikey) 
+        for ikey in usekeys:
+            res[key_list.index(ikey)] = getattr(instr, ikey) 
             
             
     elif switch==2 and inarr is not None:
         """
-        inarr has to have ndim=alfvar.npar
+        inarr has to have length of ndim=alfvar.npar
         """
         res = alfobj() 
-        res.__dict__ = dict(zip(key_list, inarr))
-        #for i, ikey in enumerate(key_list):   
-        #    res.__setattr__(ikey, inarr[i])                
+        res.__dict__ = dict(zip(key_list, inarr))                
     return res
 
 
@@ -67,12 +62,15 @@ def fill_param(inarr, usekeys = key_list):
     only works for len(inarr) = len(usekeys)
     """
     res = np.copy(default_arr)
-    
     if len(inarr) == len(key_list):
-        for i, ikey in enumerate(usekeys):
-            res[np.where(key_arr==ikey)] = inarr[np.where(key_arr==ikey)] 
+        """
+        e.g., only 4 parameters in usekeys -> only update these 4
+        """
+        for ikey in usekeys:
+            res[key_list.index(ikey)] = inarr[key_list.index(ikey)] 
             
     elif len(inarr) == len(usekeys):
         for i, ikey in enumerate(usekeys):
-            res[np.where(key_arr==ikey)] = inarr[i]  
+            res[key_list.index(ikey)] = inarr[i]  
+            
     return res

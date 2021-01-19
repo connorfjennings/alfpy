@@ -2,7 +2,7 @@
 - Collection of constants used in alf
 - It's the same as alf in fortran
 """
-import os
+import os, numpy as np
 ALF_HOME = os.environ['ALF_HOME']
 
 # ---- from alf_var.py ---- #
@@ -24,3 +24,11 @@ key_list = ['velz', 'sigma', 'logage', 'zh', 'feh',
             'logemline_h','logemline_oii','logemline_oiii',
             'logemline_sii','logemline_ni','logemline_nii',
             'logtrans','jitter','logsky', 'imf3','imf4','h3','h4']
+
+key_arr = np.array(key_list)
+default_arr = np.array([0.0, 11.0, 1.0, 0.0, 0.0,0.0,0.0,0.0, 0.0, 0.0,  
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                        0.0, 0.0, 0.0, 0.0, 0.0, 1.3, 2.3, -4.0, 
+                        11.0, 0.0, -4.0, 20.0, -4.0, 0.3, 
+                        -4.0, -4.0, -4.0, -4.0, -4.0, -4.0, 
+                        -4.0, 1.0, -4.0, 0.10, 0.0, 0.0, 0.0])

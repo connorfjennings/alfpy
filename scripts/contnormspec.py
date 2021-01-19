@@ -24,26 +24,21 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False):
     npolymax = 14
     poly_dlam = 100.
     
-    buff = 1
+    buff = 0.0
     mask = np.ones(npolymax+1)
     covar = np.empty((npolymax+1, npolymax+1))
     
     n1 = lam.size
     flxout = np.copy(flx)
-    #n2 = flxout.size
-    #if n1 != n2:
-    #    print('CONTNORMSPEC ERROR: n1 NE n2')
+
     # ---- !divide by a power-law of degree npow. one degree per poly_dlam.
     # ---- !don't let things get out of hand (force Npow<=npolymax)
     
     npow = min(int((il2-il1)/poly_dlam), npolymax)
     i1 = min(max(locate(lam, il1-buff),0), n1-2)
     i2 = min(max(locate(lam, il2+buff),1), n1-1)
-    #print('i1, i2=', i1, i2)
     ml = (il1+il2)/2.0
-    #err[~np.isfinite(flx)] = 1e33
-    #err[~np.isfinite(err)] = 1e33    
-    #print('poly order = ', npow)
+    
     #!simple linear least squares polynomial fit
     res = np.polyfit(x = lam[i1:i2], 
                      y = flx[i1:i2], 
@@ -58,9 +53,6 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False):
     
     p = np.poly1d(tcoeff)
     poly = p(lam)
-    #poly[lam>il2] = 1.
-    #poly[lam<il1] = 1.
-    #flxout[:n1] = flx[:n1] / poly[:n1]
     
     if coeff == False and return_poly==False:
         return npow

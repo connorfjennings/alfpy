@@ -148,25 +148,24 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
         if alfvar.dlstep ==0:
             alfvar.dlstep = (math.log(alfvar.sspgrid.lam[-1])-math.log(alfvar.sspgrid.lam[0]))/alfvar.sspgrid.lam.size
             alfvar.lnlam = np.arange(alfvar.nl_fit)*alfvar.dlstep+math.log(alfvar.sspgrid.lam[0])
+            
         fwhm = sigma*2.35482/clight*1e5/alfvar.dlstep
         psig = fwhm/2./math.sqrt(-2.0*math.log(0.5)) #! equivalent sigma for kernel
 
         grange = math.floor(m*psig) #! range for kernel (-range:range)
         if grange >1:
             tspec = linterp(np.log(lam[0:n2]), spec[0:n2], alfvar.lnlam[0:n2])
-            nspec = np.zeros_like(tspec)
-            psf = np.zeros(2*grange+1)
-            for i in range(0, 2*grange+1):
-                psf[i] = 1.0/math.sqrt(2*mypi)/psig*math.exp(-((i-grange)/psig)**2/2.0)
-                
+            nspec = np.copy(tspec)
+            
+            tem_ = 1.0/math.sqrt(2*mypi)/psig
+            psf = np.array([tem_*math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
             psf= psf/np.nansum(psf)
+            
             for i in range(grange, n2-grange):
                 nspec[i] = np.nansum(psf*tspec[i-grange:i+grange+1])
-                
-            if len(spec)>n2:
-                nspec[n2-grange:n2] = spec[n2-grange:n2]
+
             # ---- !interpolate back to the main array
-            spec[0:n2] = linterp(np.exp(alfvar.lnlam[0:n2]),nspec[0:n2],lam[0:n2])    
+            spec[:n2] = linterp(np.exp(alfvar.lnlam[:n2]),nspec[:n2],lam[:n2])    
     
     return spec
         

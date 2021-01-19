@@ -3,7 +3,7 @@ from linterp import *
 #from alf_vars import *
 from str2arr import *
 from getm2l import *
-from getmass import getmass
+#from getmass import getmass
 from getmodel import getmodel
 from set_pinit_priors import *
 from contnormspec import *
@@ -12,14 +12,18 @@ from alf_constants import *
 __all__ = ['func',]
 
 
-key_list = ['velz', 'sigma', 'logage', 'zh', 'feh', 
-                'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
-                'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
-                'teff','imf1','imf2','logfy','sigma2','velz2',
-                'logm7g','hotteff','loghot','fy_logage',
-                'logemline_h','logemline_oii','logemline_oiii',
-                'logemline_sii','logemline_ni','logemline_nii',
-                'logtrans','jitter','logsky', 'imf3','imf4','h3','h4']
+key_list = ['velz', 'sigma', 'logage', 'zh', 
+            'feh', 'ah', 'ch', 'nh',
+            'nah','mgh','sih','kh',
+            'cah','tih', 'vh','crh',
+            'mnh','coh','nih','cuh',
+            'srh','bah','euh','teff',
+            'imf1','imf2','logfy','sigma2',
+            'velz2','logm7g','hotteff','loghot',
+            'fy_logage','logemline_h','logemline_oii','logemline_oiii',
+            'logemline_sii','logemline_ni','logemline_nii','logtrans',
+            'jitter','logsky', 'imf3','imf4',
+            'h3','h4']
 
 # ---------------------------------------------------------------- #
 def func(alfvar, in_posarr, prhiarr = None, prloarr=None, 
@@ -49,36 +53,17 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     
     # ---------------------------------------------------------------- #
     func_val = 0.0
-
-    # --- !this is for Powell minimization
-    #if nposarr.size < alfvar.npar:
-    #    # ---- !copy over the default parameters first
-    #    tposarr = str2arr(switch=1, instr = npos, usekeys=usekeys) #!str->arr
-    #    # ---- !only copy the first four params (velz,sigma,age,[Z/H])
-    #    tposarr[:alfvar.npowell] = nposarr[:alfvar.npowell]
-    #else:
-    #    tposarr = np.copy(nposarr)
-    
-    #npos = str2arr(2, inarr = in_posarr, usekeys=usekeys) #arr->str
-    #nposarr = str2arr(1, instr = npos, usekeys=usekeys)
     nposarr = fill_param(in_posarr, usekeys = usekeys)
     npos = str2arr(2, inarr = nposarr)
     # ---------------------------------------------------------------- #
     # ---- !compute priors (don't count all the priors if fitting
     # ---- !in (super) simple mode or in powell fitting mode)
     pr = 1.0
-    for i in range(alfvar.npar):
-        if np.logical_and(i > alfvar.npowell, 
-                          np.logical_or(alfvar.powell_fitting == 1,
-                                        alfvar.fit_type == 2)):
-            continue
-        if (alfvar.fit_type == 1 and i > alfvar.nparsimp):
-            continue
-        if (alfvar.fit_indices == 1 and i <= 2):
-            continue
-        if (nposarr[i] > prhiarr[i]) or (nposarr[i] < prloarr[i]):
-            pr=0.0
     
+    if (nposarr>prhiarr).sum() + (nposarr<prloarr).sum() >0:
+        print('out of limits', nposarr)
+        pr =0.0
+
 
     # ---------------------------------------------------------------- #
     # ---- !regularize the non-parametric IMF
@@ -102,8 +87,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     if (pr > tiny_number):
         # ---- !get a new model spectrum
         mspec = getmodel(npos, alfvar=alfvar)
-        if np.nanstd(mspec)==0:
-            return np.inf
     else:
         return np.inf
      
@@ -111,15 +94,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
         spec_ = np.copy(mspec)
 
     # ---------------------------------------------------------------- #
-    # ---- include external M/L prior (assuming I-band)
-    if (alfvar.extmlpr == 1): # ??? check
-        mlalf = getm2l(alfvar.sspgrid.lam, mspec, npos)
-        klo  = max(min(locate(alfvar.mlprtab[0:alfvar.nmlprtabmax+1,0],mlalf[1]),alfvar.nmlprtabmax-1),0)
-        dk   = (mlalf[1]-alfvar.mlprtab[klo,0])/(alfvar.mlprtab[klo+1,0]-alfvar.mlprtab[klo,0])
-        dk   = max(min(dk,1.0),0.0) # ---- !no extrapolation
-        mlpr = dk*alfvar.mlprtab[klo+1,1] + (1-dk)*alfvar.mlprtab[klo,1]
-        pr   = pr*mlpr
-
 
     if (alfvar.fit_indices == 0) :
         # ---- !redshift the model and interpolate to data wavelength array
@@ -127,22 +101,23 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
         zmspec = linterp(alfvar.sspgrid.lam[:alfvar.nl_fit]*oneplusz,
                          mspec[:alfvar.nl_fit],
                          alfvar.data.lam[:alfvar.datmax])
-
+        
 
         # ---- !compute chi2, looping over wavelength intervals
+        datasize = len(data.lam)
         for i in range(alfvar.nlint):
             tl1 = max(l1[i]*oneplusz, data.lam[0])
             tl2 = min(l2[i]*oneplusz, data.lam[-1])
-            ml  = (tl1+tl2)/2.0
+            
+            #ml  = (tl1+tl2)/2.0
             # ---- !if wavelength interval falls completely outside 
             # ---- !of the range of the data, then skip
             if tl1 >= tl2:
                 continue
 
-            i1 = min(max(locate(data.lam, tl1),0),len(data.lam)-2)
-            i2 = min(max(locate(data.lam, tl2),1),len(data.lam)-1)
+            i1 = min(max(locate(data.lam, tl1),0), datasize-2)
+            i2 = min(max(locate(data.lam, tl2),1), datasize-1)
 
-            #print('tl1, tl2, i1, i2 =', tl1,',', tl2,',', i1,',', i2, )
             # ---- !fit a polynomial to the ratio of model and data
             npow, tcoeff, poly = contnormspec(data.lam[:alfvar.datmax], 
                                     data.flx[:alfvar.datmax]/zmspec, 
@@ -151,7 +126,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                                     coeff = True, 
                                     return_poly = True)
             mflx  = zmspec * poly
-            
             # ---- !compute chi^2
             flx = np.copy(data.flx[i1:i2])
             err = np.copy(data.err[i1:i2])
@@ -200,13 +174,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                 for j in range(i1,i2):
                     print(funit, data.lam[j],mflx[j],
                           data.flx[j],data.flx[j]/terr[j],poly[j],data.err[j])
-
-    # #!include priors (func_val is chi^2)
-    # ---- use priors.py instead
-    # if (pr <= tiny_number):
-    #     func_val = huge_number 
-    # else: 
-    #     func_val = func_val - 2*np.log(pr)
 
     if spec == False:
         return func_val

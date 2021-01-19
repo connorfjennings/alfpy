@@ -12,18 +12,17 @@ from read_data import *
 from linterp import *
 from str2arr import *
 from getvelz import getvelz
-#import h5py
 from contextlib import closing
 
 
 # -------------------------------------------------------- #
+global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh',
-            'ah', 'ch', 'nh','nah','mgh','sih','cah','tih',
-            'teff','imf1','imf2',
-            'logm7g','hotteff','loghot',
-            'logemline_h','logemline_oii','logemline_oiii',
-            'logtrans','jitter','logsky', 'imf3']
+use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 'ah', 'ch', 'nh', 'nah', 'mgh', 'sih', 
+            'kh', 'cah', 'tih', 'vh', 'crh', 'mnh', 'coh', 'nih', 'cuh', 'srh', 'bah', 
+            'euh', 'teff', 'imf1', 'imf2', 'logfy', 'sigma2', 'velz2', 'logm7g', 'hotteff', 
+            'loghot', 'fy_logage', 'logemline_h', 'logemline_oii', 'logemline_oiii', 
+            'logemline_sii', 'logemline_ni', 'logemline_nii', 'logtrans', 'jitter', 'logsky', 'imf3']
 
 
 # -------------------------------------------------------- #
@@ -50,34 +49,25 @@ def log_prob_nested(posarr):
 
 # -------------------------------------------------------- #
 def prior_transform(unit_coords):
-    theta = np.empty((len(unit_coords)))
-    key_arr = np.array(['velz', 'sigma', 'logage', 'zh', 'feh',
-                        'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
-                        'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
-                        'teff','imf1','imf2','logfy','sigma2','velz2',
-                            'logm7g','hotteff','loghot','fy_logage',
-                            'logemline_h','logemline_oii','logemline_oiii',
-                            'logemline_sii','logemline_ni','logemline_nii',
-                            'logtrans','jitter','logsky', 'imf3','imf4','h3','h4'])
+    return np.array([global_all_prior[key_list.index(ikey)].unit_transform(unit_coords[i]) for i, ikey in enumerate(use_keys)])
 
-    for i, ikey in enumerate(use_keys):
-        ind = np.where(key_arr==ikey)
-        a = TopHat(global_prloarr[ind].item(), global_prhiarr[ind].item())
-        theta[i] = a.unit_transform(unit_coords[i])
-
-    return theta
 
 # -------------------------------------------------------- #
 def lnprior(in_arr, nested=False):
+    """
+    - INPUT: npar arr (same length as use_keys)
+    - GLOBAL VARIABLES:
+        - global_all_priors: priors for all 46 parameter
+    """
     in_pos_arr = fill_param(in_arr, use_keys)
-    lnp = np.nansum([global_all_prior[i].lnp(in_pos_arr[i]) for i in range(len(in_pos_arr))])
+    lnp = np.nansum([global_all_prior[i].lnp(in_pos_arr[i]) for i in range(in_pos_arr.size)])
     if nested and np.isfinite(lnp):
         return 0.0
     return lnp
 
 
 # -------------------------------------------------------- #
-def alf(filename, alfvar=None, tag='', run='dynesty', 
+def alf(filename, alfvar=None, tag='', run='dynesty',
         model_arr = None):
     """
     - based on alf.f90
@@ -190,7 +180,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     prhi.teff   =  2.0
     prlo.teff   = -2.0
 
-    
+
     # ---------------------------------------------------------------!
     # --------------Do not change things below this line-------------!
     # ---------------unless you know what you are doing--------------!
@@ -274,7 +264,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
         alfvar = read_data(alfvar)
         # ---- read in the SSPs and bandpass filters
         # ------- setting up model arry with given imf_type ---- #
-        
+
         if model_arr is None:
             print('\nsetting up model arry with given imf_type and input data\n')
             print('It took me 3hrs. Will work on it...')
@@ -282,7 +272,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             os.system('mkdir -p pickle')
             pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
             pickle.dump(alfvar, pickle_model_name)
-        
+
         lam = np.copy(alfvar.sspgrid.lam)
         # ---- interpolate the sky emission model onto the observed wavelength grid
         if alfvar.observed_frame == 1:
@@ -323,132 +313,93 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
     # ---- this is the master process
     # ---- estimate velz ---- #
-    if (alfvar.fit_indices == 0):
-        print("  Fitting ",alfvar.nlint," wavelength intervals")
-        nlint = alfvar.nlint
-        l1, l2 = alfvar.l1, alfvar.l2
-        print('wavelength bourdaries: ', l1, l2)
-        if l2[-1]>np.nanmax(lam) or l1[0]<np.nanmin(lam):
-            print('ERROR: wavelength boundaries exceed model wavelength grid')
-            print(l2[nlint-1],lam[nl-1],l1[0],lam[0])
+    print("  Fitting ",alfvar.nlint," wavelength intervals")
+    nlint = alfvar.nlint
+    l1, l2 = alfvar.l1, alfvar.l2
+    print('wavelength bourdaries: ', l1, l2)
+    if l2[-1]>np.nanmax(lam) or l1[0]<np.nanmin(lam):
+        print('ERROR: wavelength boundaries exceed model wavelength grid')
+        print(l2[nlint-1],lam[nl-1],l1[0],lam[0])
 
-        # ---- make an initial estimate of the redshift
-        print(' Fitting cz...')
-        velz = getvelz(alfvar)
-        if velz < prlo.velz or velz > prhi.velz:
-            print('cz', velz,' out of prior bounds, setting to 0.0')
-            velz = 0.0
-        opos.velz = velz
-        print("    cz= ",opos.velz," (z=",opos.velz/1e5,")")
+    # ---- make an initial estimate of the redshift
+    print(' Fitting cz...')
+    velz = getvelz(alfvar)
+    if velz < prlo.velz or velz > prhi.velz:
+        print('cz', velz,' out of prior bounds, setting to 0.0')
+        velz = 0.0
+    opos.velz = velz
+    print("    cz= ",opos.velz," (z=",opos.velz/1e5,")")
 
-        oposarr = str2arr(switch=1, instr=opos)
+    oposarr = str2arr(switch=1, instr=opos)
+    global global_alfvar, global_prloarr, global_prhiarr
+    global_alfvar = copy.deepcopy(alfvar)
+    global_prloarr = copy.deepcopy(prloarr)
+    global_prhiarr = copy.deepcopy(prhiarr)
+    global global_all_prior # note it's for all parameters
+    global_all_prior = [TopHat(prloarr[i], prhiarr[i]) for i in range(len(key_list))]
 
-        global global_alfvar, global_prloarr, global_prhiarr
-        global_alfvar = copy.deepcopy(alfvar)
-        global_prloarr = copy.deepcopy(prloarr)
-        global_prhiarr = copy.deepcopy(prhiarr)
-        global global_all_prior
-        global_all_prior = [TopHat(prloarr[i], prhiarr[i]) for i in range(len(key_list))]
+    npar = len(use_keys)
+    print('\nWe are going to fit ', npar, 'parameters\nThey are', use_keys)
+    
+
+    # ---------------------------------------------------------------- #
+    if run == 'emcee':
+        print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
+
+        nwalkers = 128
+        # setup initial parameters
+        np.random.seed(42)
+        pos_emcee_in = np.empty((nwalkers, npar))
+        for i, ikeys in enumerate(use_keys):
+            if ikeys[:4] == 'velz' or ikeys[:4] == 'sigm':
+                pos_emcee_in[:,i] = oposarr[i] + 10.0*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
+            else:
+                pos_emcee_in[:,i] = oposarr[i] + 0.1*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
+
+        print('initial values of the first walker:\n', pos_emcee_in[0], '\n')
+
+        #with Pool() as pool:
+        with closing(Pool(processes=16)) as pool:
+            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
+            start = time.time()
+            state = sampler.run_mcmc(pos_emcee_in, nmcmc, progress=True)
+            end = time.time()
+            multi_time = end - start
+            print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+
+        res = sampler.get_chain()
+        pickle.dump(res, open('../test_emcee_res.p', "wb" ) )
 
 
-        print('\nWe are going to fit ', use_keys, '\n')
-        npar = len(use_keys)
-
+    # ---------------------------------------------------------------- #
+    elif run == 'dynesty':
         # ---------------------------------------------------------------- #
-        #def log_prob(posarr):
-        #    return -0.5*func(global_alfvar, posarr,
-        #                     prhiarr=global_prhiarr,
-        #                     prloarr=global_prloarr,
-        #                     usekeys=use_keys)
-        # ---------------------------------------------------------------- #
+        # based on prospector
+        # ... need to learn how to optimize these parameters
+        # instantiate sampler
+        ndim = len(use_keys)
+        nproc = 16
+
+        with closing(Pool(processes=nproc)) as pool:
+            dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform,ndim,
+                                            bound='multi', sample='slice',
+                                            pool=pool, queue_size=nproc)
+
+            # generator for initial nested sampling
+            ncall = dsampler.ncall
+            niter = dsampler.it - 1
+            tstart = time.time()
+            dsampler.run_nested(dlogz_init=0.05)
+            ndur = time.time() - tstart
+            print('\ndone dynesty (initial) in {0}s'.format(ndur))
+            
+            
+        results = dsampler.results
+        pickle.dump(results, open('../test_dynesty_res6.p', "wb" ) )
+        pickle.dump(dsampler, open('../dsampler_dynesty_res6.p', "wb" ) )
 
 
 
-        # ---------------------------------------------------------------- #
-        if run == 'emcee':
-            print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
-
-            nwalkers = 128
-            # setup initial parameters
-            np.random.seed(42)
-            pos_emcee_in = np.empty((nwalkers, npar))
-            for i, ikeys in enumerate(use_keys):
-                if ikeys[:4] == 'velz' or ikeys[:4] == 'sigm':
-                    pos_emcee_in[:,i] = oposarr[i] + 10.0*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
-                else:
-                    pos_emcee_in[:,i] = oposarr[i] + 0.1*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
-
-            print('initial values of the first walker:\n', pos_emcee_in[0], '\n')
-
-            #with Pool() as pool:
-            with closing(Pool(processes=4)) as pool:
-                sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
-                start = time.time()
-                state = sampler.run_mcmc(pos_emcee_in, nmcmc, progress=True)
-                end = time.time()
-                multi_time = end - start
-                print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-            #sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob)
-            #start = time.time()
-            #state = sampler.run_mcmc(pos_emcee_in, nmcmc, progress=True)
-            #end = time.time()
-            #multi_time = end - start
-            #print("Multiprocessing took {0:.1f} seconds".format(multi_time))
-
-            res = sampler.get_chain()
-            pickle.dump(res, open('../test_emcee_res.p', "wb" ) )
-
-
-        # ---------------------------------------------------------------- #
-        elif run == 'dynesty':
-
-            # ---------------------------------------------------------------- #
-            # based on prospector
-            # ... need to learn how to optimize these parameters
-            # instantiate sampler
-
-            with closing(Pool(processes=8)) as pool:
-                dsampler = dynesty.DynamicNestedSampler(log_prob_nested,
-                                                        prior_transform, len(use_keys),
-                                            bound='multi', sample='unif',
-                                            update_interval=0.6,
-                                            pool=None, queue_size=1,
-                                            walks=25, bootstrap=0)
-
-                # generator for initial nested sampling
-                ncall = dsampler.ncall
-                niter = dsampler.it - 1
-                tstart = time.time()
-                for results in dsampler.sample_initial(nlive=100, dlogz= 0.05,
-                                                   maxcall= int(1e6),maxiter=None):
-                    (worst, ustar, vstar, loglstar, logvol,
-                     logwt, logz, logzvar, h, nc, worst_it,
-                     propidx, propiter, eff, delta_logz) = results
-
-                    if delta_logz > 1e6:
-                        delta_logz = np.inf
-                        ncall += nc
-                        niter += 1
-
-                    with np.errstate(invalid='ignore'):
-                        logzerr = np.sqrt(logzvar)
-
-                    sys.stderr.write("\riter: {:d} | batch: {:d} | nc: {:d} | "
-                                     "ncall: {:d} | eff(%): {:6.3f} | "
-                                     "logz: {:6.3f} +/- {:6.3f} | "
-                                     "dlogz: {:6.3f} > {:6.3f}    ".format(niter, 0, nc, ncall,
-                                                                           eff, logz,logzerr,
-                                                                           delta_logz, 0.02))
-                    sys.stderr.flush()
-
-                ndur = time.time() - tstart
-                print('\ndone dynesty (initial) in {0}s'.format(ndur))
-
-            results = dsampler.results
-            pickle.dump(results, open('../test_dynesty_res4.p', "wb" ) )
-
-
-
-# -------------------------------- #            
-alf('ldss3_dr246_n4055_Re4_wave6e', tag='', run='dynesty', 
-    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3.p')
+# -------------------------------- #
+alf('ldss3_dr246_n4055_Re4_wave6e', tag='', run='dynesty',
+    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3_full.p')

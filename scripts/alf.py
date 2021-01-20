@@ -18,11 +18,8 @@ from contextlib import closing
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 'ah', 'ch', 'nh', 'nah', 'mgh', 'sih', 
-            'kh', 'cah', 'tih', 'vh', 'crh', 'mnh', 'coh', 'nih', 'cuh', 'srh', 'bah', 
-            'euh', 'teff', 'imf1', 'imf2', 'logfy', 'sigma2', 'velz2', 'logm7g', 'hotteff', 
-            'loghot', 'fy_logage', 'logemline_h', 'logemline_oii', 'logemline_oiii', 
-            'logemline_sii', 'logemline_ni', 'logemline_nii', 'logtrans', 'jitter', 'logsky', 'imf3']
+use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh',
+            'ah', 'ch', 'nh','nah','mgh','sih','cah','tih',]
 
 
 # -------------------------------------------------------- #
@@ -191,18 +188,16 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
     # ---- dont fit transmission function in cases where the input
     # ---- spectrum has already been de-redshifted to ~0.0
-    if (alfvar.observed_frame == 0.) or (alfvar.fit_indices == 1):
-        alfvar.fit_trans = 0
-        prhi.logtrans = -5.0
-        prhi.logsky   = -5.0
-    else:
-        alfvar.fit_trans = 1
-        """
-        # ---- extra smoothing to the transmission spectrum.
-        # ---- if the input data has been smoothed by a gaussian
-        # ---- in velocity space, set the parameter below to that extra smoothing
-        """
-        alfvar.smooth_trans = 0.0
+    #alfvar.fit_trans = 0
+    #prhi.logtrans = -5.0
+    #prhi.logsky   = -5.0
+    alfvar.fit_trans = 1
+    """
+    # ---- extra smoothing to the transmission spectrum.
+    # ---- if the input data has been smoothed by a gaussian
+    # ---- in velocity space, set the parameter below to that extra smoothing
+    """
+    alfvar.smooth_trans = 0.0
 
     if (alfvar.ssp_type == 'cvd'):
         # ---- always limit the [Z/H] range for CvD since
@@ -340,7 +335,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
     npar = len(use_keys)
     print('\nWe are going to fit ', npar, 'parameters\nThey are', use_keys)
-    
+
 
     # ---------------------------------------------------------------- #
     if run == 'emcee':
@@ -378,12 +373,13 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
         # ... need to learn how to optimize these parameters
         # instantiate sampler
         ndim = len(use_keys)
-        nproc = 16
+        nproc = 8
 
         with closing(Pool(processes=nproc)) as pool:
             dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform,ndim,
-                                            bound='multi', sample='slice',
-                                            pool=pool, queue_size=nproc)
+                                                    bound='multi', nlive=500,
+                                                    sample='slice',
+                                                    pool=pool, queue_size=nproc)
 
             # generator for initial nested sampling
             ncall = dsampler.ncall
@@ -392,14 +388,14 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             dsampler.run_nested(dlogz_init=0.05)
             ndur = time.time() - tstart
             print('\ndone dynesty (initial) in {0}s'.format(ndur))
-            
-            
+
+
         results = dsampler.results
-        pickle.dump(results, open('../test_dynesty_res6.p', "wb" ) )
-        pickle.dump(dsampler, open('../dsampler_dynesty_res6.p', "wb" ) )
+        pickle.dump(results, open('../res_dynesty_res1.p', "wb" ) )
+        pickle.dump(dsampler, open('../dsampler_dynesty_res1.p', "wb" ) )
 
 
 
 # -------------------------------- #
-alf('ldss3_dr246_n4055_Re4_wave6e', tag='', run='dynesty',
-    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3_full.p')
+alf(inspec, tag='', run='dynesty',
+    model_arr = None)

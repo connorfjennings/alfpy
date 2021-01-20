@@ -2,7 +2,7 @@ import numpy as np
 from linterp import *
 #from alf_vars import *
 from str2arr import *
-from getm2l import *
+#from getm2l import *
 #from getmass import getmass
 from getmodel import getmodel
 from set_pinit_priors import *

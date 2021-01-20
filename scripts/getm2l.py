@@ -37,6 +37,7 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None):
     #!---------------------------------------------------------------!
     #!convert to the proper units
     aspec = spec*lsun/1e6*lam**2/clight/1e8/4/mypi/pc2cm**2
+    print('asepc.shape', aspec.shape, filters.shape)
     
     msto = 10**(msto_t0 + msto_t1*pos.logage)*(msto_z0 + msto_z1*pos.zh + msto_z2*pos.zh**2 )
     

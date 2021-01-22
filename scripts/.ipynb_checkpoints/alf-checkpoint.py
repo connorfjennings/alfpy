@@ -18,7 +18,8 @@ from contextlib import closing
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh']
+use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
+            'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',]
 
 
 # -------------------------------------------------------- #
@@ -268,35 +269,32 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             pickle.dump(alfvar, pickle_model_name)
 
             
-        ## ---- ??? check ---- ##
-        ## maybe more this part to read_data which is only called in alf.f90 ? ##
+        ## ---- This part requires alfvar.sspgrid.lam ---- ##
         lam = np.copy(alfvar.sspgrid.lam)
-        
-        
         # ---- interpolate the sky emission model onto the observed wavelength grid
         # ---- moved to read_data
-        #if alfvar.observed_frame == 1:
-        #    alfvar.data.sky = linterp(alfvar.lsky, alfvar.fsky, alfvar.data.lam)
-        #    alfvar.data.sky[alfvar.data.sky<0] = 0.
-        #else:
-        #    alfvar.data.sky[:] = tiny_number
-        #alfvar.data.sky[:] = tiny_number  # ?? why?
+        if alfvar.observed_frame == 1:
+            alfvar.data.sky = linterp(alfvar.lsky, alfvar.fsky, alfvar.data.lam)
+            alfvar.data.sky[alfvar.data.sky<0] = 0.
+        else:
+            alfvar.data.sky[:] = tiny_number
+        alfvar.data.sky[:] = tiny_number  # ?? why?
 
         # ---- we only compute things up to 500A beyond the input fit region
-        #alfvar.nl_fit = min(max(locate(lam, alfvar.l2[-1]+500.0),0),alfvar.nl-1)
+        alfvar.nl_fit = min(max(locate(lam, alfvar.l2[-1]+500.0),0),alfvar.nl-1)
         ##define the log wavelength grid used in velbroad.f90
-        #alfvar.dlstep = (np.log(alfvar.sspgrid.lam[alfvar.nl_fit])-
-        #                 np.log(alfvar.sspgrid.lam[0]))/alfvar.nl_fit
+        alfvar.dlstep = (np.log(alfvar.sspgrid.lam[alfvar.nl_fit])-
+                         np.log(alfvar.sspgrid.lam[0]))/alfvar.nl_fit
 
-        #for i in range(alfvar.nl_fit):
-        #    alfvar.lnlam[i] = i*alfvar.dlstep + np.log(alfvar.sspgrid.lam[0])
+        for i in range(alfvar.nl_fit):
+            alfvar.lnlam[i] = i*alfvar.dlstep + np.log(alfvar.sspgrid.lam[0])
         # ---- masked regions have wgt=0.0.  We'll use wgt as a pseudo-error
         # ---- array in contnormspec, so turn these into large numbers
-        #alfvar.data.wgt = 1./(alfvar.data.wgt+tiny_number)
-        #alfvar.data.wgt[alfvar.data.wgt>huge_number] = huge_number
+        alfvar.data.wgt = 1./(alfvar.data.wgt+tiny_number)
+        alfvar.data.wgt[alfvar.data.wgt>huge_number] = huge_number
         # ---- fold the masked regions into the errors
-        #alfvar.data.err = alfvar.data.err * alfvar.data.wgt
-        #alfvar.data.err[alfvar.data.err>huge_number] = huge_number
+        alfvar.data.err = alfvar.data.err * alfvar.data.wgt
+        alfvar.data.err[alfvar.data.err>huge_number] = huge_number
 
 
     # ---- set initial params, step sizes, and prior ranges
@@ -343,10 +341,9 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     # ---------------------------------------------------------------- #
     if run == 'emcee':
         print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
-        nproc = 4
+        nproc = 8
         nwalkers = 256
         npar = len(use_keys)
-        # setup initial parameters
         np.random.seed(42)
         pos_emcee_in = np.empty((nwalkers, npar))
         for i, ikeys in enumerate(use_keys):
@@ -366,7 +363,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             print("Multiprocessing took {0:.1f} seconds".format(multi_time))
 
         res = sampler.get_chain()
-        pickle.dump(res, open('../res_emcee_res1.p', "wb" ) )
+        pickle.dump(res, open('../res_emcee_res2.p', "wb" ) )
 
 
     # ---------------------------------------------------------------- #
@@ -394,10 +391,10 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
 
         results = dsampler.results
-        pickle.dump(results, open('../res_dynesty_res1.p', "wb" ) )
+        pickle.dump(results, open('../res_dynesty_res2.p', "wb" ) )
 
 
 
 # -------------------------------- #
-alf(filename='inspec', tag='', run='dynesty',
+alf(filename='ldss3_dr247_n4055_Re4_wave6e', tag='', run='emcee',
     model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3_full.p')

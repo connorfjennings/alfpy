@@ -43,9 +43,10 @@ def getmodel(pos, alfvar = None, mw = 0):
     #---------------------------------------------------------------!
 
     # ---- set up interpolants for age, Line 25 in getmodel.f90
-    vt = max(min(locate(sspgrid.logagegrid, pos.logage),alfvar.nage-2),0) 
+    vt = max(min(locate(sspgrid.logagegrid, pos.logage),alfvar.nage-2),0)
     dt = (pos.logage - sspgrid.logagegrid[vt])/(sspgrid.logagegrid[vt+1]-sspgrid.logagegrid[vt])
     dt = max(min(dt, 1.2), -0.3)    # 0.5<age<14 Gyr
+    print('logage vt, dt, =', vt, dt, pos.logage)
 
     # ---- set up interpolants for metallicity
     vm = max(min(locate(sspgrid.logzgrid, pos.zh), nzmet-2), 0)
@@ -82,6 +83,7 @@ def getmodel(pos, alfvar = None, mw = 0):
             vm3 = max(min(locate(sspgrid.logzgrid2, pos.zh), nzmet3-2),0) 
             dm3 = (pos.zh-sspgrid.logzgrid2[vm3])/(sspgrid.logzgrid2[vm3+1]-sspgrid.logzgrid2[vm3])
             dm3 = max(min(dm3, 1.5), -1.0)
+            print('vv1, vv2, vt, vv3, vm=', vv1, vv2, vt, vv3, vm3)
             
 
             tmp1 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3,vm3+1] + 

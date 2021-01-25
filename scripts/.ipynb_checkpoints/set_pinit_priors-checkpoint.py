@@ -1,6 +1,7 @@
 #from alf_vars import *
 from str2arr import alfobj, str2arr
 import copy, random, numpy as np
+import math
 
 __all__ = ['set_pinit_priors']
 
@@ -77,15 +78,15 @@ def set_pinit_priors(alfvar, velz=None):
     if fit_type == 0:
         if fit_two_ages == 0:
             # ---- !in this case we have a single age model, so it needs tocover the full range
-            prlo.logage = np.log10(0.5)
+            prlo.logage = math.log10(0.5)
         else:
             # ---- in this case we're fitting a two component model so dont allow them to overlap in age
-            prlo.logage = np.log10(3.0)
+            prlo.logage = math.log10(3.0)
     else:
         # ---- in this case we have a single age model, so it needs to cover the full range
-        prlo.logage = np.log10(0.5)
+        prlo.logage = math.log10(0.5)
 
-    prhi.logage = np.log10(14.0)
+    prhi.logage = math.log10(14.0)
 
     prior_dict = {'zh': (-1.8, 0.3), 'feh': (-0.3, 0.5), 'ah': (-0.3, 0.5),
                   'ch': (-0.3, 0.5), 'nh': (-0.3, 1.0),
@@ -94,7 +95,7 @@ def set_pinit_priors(alfvar, velz=None):
                   'vh': (-0.3, 0.5), 'crh': (-0.3, 0.5), 'mnh': (-0.3, 0.5),
                   'coh': (-0.3, 0.5), 'nih': (-0.3, 0.5), 'cuh': (-0.3, 0.5),
                   'srh': (-0.3, 0.5), 'bah': (-0.6, 0.5), 'euh': (-0.5, 0.5),
-                  'teff': (-50., 50.), 'logfy':(-6., -0.1), 'fy_logage': (np.log10(0.5), np.log10(3.0)),
+                  'teff': (-50., 50.), 'logfy':(-6., -0.1), 'fy_logage': (math.log10(0.5), math.log10(3.0)),
                   'logm7g': (-6., -1.0), 'hotteff':(8., 30.), 'loghot':(-8.0, -1.0),
                   'sigma':(10., 5e2), 'sigma2':(10., 5e2), 'chi2':(0, 2e33),
                   'velz':(-1e3, 2e4), 'velz2':(-1e3, 2e4),

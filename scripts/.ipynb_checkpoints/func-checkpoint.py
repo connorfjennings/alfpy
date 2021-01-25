@@ -13,7 +13,7 @@ __all__ = ['func',]
 
 # ---------------------------------------------------------------- #
 def func(alfvar, in_posarr, prhiarr = None, prloarr=None, 
-         spec=False, funit=None, usekeys = key_list):
+         funit=False, usekeys = key_list):
     """  
     !routine to get a new model and compute chi^2.  Optionally,
     !the model spectrum is returned (spec).  The model priors
@@ -53,7 +53,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
         print('out of limits', nposarr)
         pr =0.0
 
-
     # ---------------------------------------------------------------- #
     # ---- !regularize the non-parametric IMF
     # ---- !the IMF cannot be convex (U shaped)
@@ -78,9 +77,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
         mspec = getmodel(npos, alfvar=alfvar)
     else:
         return np.inf
-     
-    if spec == True: 
-        spec_ = np.copy(mspec)
 
     # ---------------------------------------------------------------- #
 
@@ -105,7 +101,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                 continue
 
             i1 = min(max(locate(data.lam, tl1),0), datasize-2)
-            i2 = min(max(locate(data.lam, tl2),1), datasize-1)
+            i2 = min(max(locate(data.lam, tl2),1), datasize-1)+1
 
             # ---- !fit a polynomial to the ratio of model and data
             npow, tcoeff, poly = contnormspec(data.lam, data.flx/zmspec, 
@@ -113,21 +109,23 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                                  coeff = True, return_poly = True)
             mflx  = zmspec * poly
             # ---- !compute chi^2
-            flx = np.copy(data.flx[i1:i2])
-            err = np.copy(data.err[i1:i2])
-            sky = np.copy(data.sky[i1:i2])
-            model = np.copy(mflx[i1:i2])
+            flx_i12 = np.copy(data.flx[i1:i2])
+            err_i12 = np.copy(data.err[i1:i2])
+            sky_i12 = np.copy(data.sky[i1:i2])
+            mflx_i12 = np.copy(mflx[i1:i2])
                 
-            if (alfvar.fit_type == 0):
+            if alfvar.fit_type == 0:
                 # ---- !include jitter term
-                sky_term = np.square(np.power(10,npos.logsky)*sky)
-                err_term = np.square(err)*npos.jitter**2
-                tocal_1 = np.square(flx-model)/(err_term + sky_term)
+                sky_term = np.square(np.power(10,npos.logsky)*sky_i12)
+                err_term = np.square(err_i12)*npos.jitter**2
+                tocal_1 = np.square(flx_i12-mflx_i12)/(err_term + sky_term)
                 tocal_2 = np.log(2*mypi*(err_term + sky_term)) 
                 tchi2 = np.nansum(tocal_1 + tocal_2)
+                #print(np.nansum(sky_term), np.nansum(err_term), np.nansum(tocal_1), 
+                #      np.nansum(tocal_2))
             else:
                 # ---- !no jitter in simple mode
-                tchi2 = np.nansum( np.square(flx-model)/np.square(err) )
+                tchi2 = np.nansum( np.square(flx_i12-mflx_i12)/np.square(err_i12) )
             
            
             # ---- !error checking
@@ -145,23 +143,31 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
             else:
                 func_val  += tchi2
         
-            if funit is not None:
+            if funit is True:
+                if (alfvar.fit_type == 0):
+                    terr = np.sqrt(sky_term + err_term)
+                else:
+                    terr = data.err
+                    
+                combine_i12 = np.concatenate((data.lam[i1:i2].reshape(1, i2-i1), 
+                                              mflx_i12.reshape(1, i2-i1),
+                                              flx_i12.reshape(1, i2-i1), 
+                                              (flx_i12/terr).reshape(1, i2-i1), 
+                                              poly[i1:i2].reshape(1, i2-i1), 
+                                              err_i12.reshape(1, i2-i1),), axis=0)
+                
+                if i==0:
+                    outspec_arr = np.copy(combine_i12)
+                else:
+                    outspec_arr = np.hstack((outspec_arr, combine_i12))
                 # ---- write final results to screen and file
                 print("%.2f um - %.2f um:  rms: %.2f percetn,Chi2/dof: %.2f" 
                       %(tl1/1e4/oneplusz,tl2/1e4/oneplusz,
-                        np.sqrt(np.nansum( (flx/model-1)**2 )/(i2-i1+1) )*100,
+                        np.sqrt(np.nansum( (flx_i12/mflx_i12-1)**2 )/(i2-i1+1) )*100,
                         tchi2/(i2-i1)))
-                
-                if (alfvar.fit_type == 0):
-                    terr = np.sqrt(np.square(data.err)*npos.jitter**2+np.square(np.power(10,npos.logsky)*data.sky))
-                else:
-                    terr = data.err
 
-                for j in range(i1,i2):
-                    print(funit, data.lam[j],mflx[j],
-                          data.flx[j],data.flx[j]/terr[j],poly[j],data.err[j])
 
-    if spec == False:
+    if funit == False:
         return func_val
-    elif spec == True:
-        return func_val, spec_
+    elif funit == True:
+        return func_val, outspec_arr

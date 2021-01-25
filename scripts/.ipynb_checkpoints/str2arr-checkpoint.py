@@ -1,5 +1,5 @@
 #from alf_vars import *
-import numpy as np
+import math, numpy as np
 
 __all__ = ['str2arr', 'fill_param']
 
@@ -7,20 +7,21 @@ __all__ = ['str2arr', 'fill_param']
 key_list = ['velz', 'sigma', 'logage', 'zh', 'feh', 
             'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
             'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
-                'teff','imf1','imf2','logfy','sigma2','velz2',
-                'logm7g','hotteff','loghot','fy_logage',
-                'logemline_h','logemline_oii','logemline_oiii',
-                'logemline_sii','logemline_ni','logemline_nii',
-                'logtrans','jitter','logsky', 'imf3','imf4','h3','h4']
+            'teff','imf1','imf2','logfy','sigma2','velz2',
+            'logm7g','hotteff','loghot','fy_logage',
+            'logemline_h','logemline_oii','logemline_oiii',
+            'logemline_sii','logemline_ni','logemline_nii',
+            'logtrans','jitter','logsky', 'imf3','imf4','h3','h4']
 
 key_arr = np.array(key_list)
 
-default_arr = np.array([0.0, 11.0, 1.0, 0.0, 0.0,0.0,0.0,0.0, 0.0, 0.0,  
+default_arr = np.array([0.0, 11.0, 1.0, 0.0, 0.0, 
                         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                        0.0, 0.0, 0.0, 0.0, 0.0, 1.3, 2.3, -4.0, 
-                        11.0, 0.0, -4.0, 20.0, -4.0, 0.3, 
-                        -4.0, -4.0, -4.0, -4.0, -4.0, -4.0, 
-                        -4.0, 1.0, -4.0, 0.10, 0.0, 0.0, 0.0])
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                        0.0, 1.3, 2.3, -4.0, 10.1, 0.0, 
+                        -4.0, 20.0, -4., 0.3, 
+                        -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, 
+                        -4.0, 1.0, -4.0, 0.08, 0.0, 0.0, 0.0])
 
 
 class alfobj(object):

@@ -1,15 +1,15 @@
+import copy, pickle, numpy as np
 from alf_vars import *
 from linterp import *
 from str2arr import *
 from getmodel import *
-import pickle, numpy as np
 from getm2l import *
 from alf_constants import *
 
 __all__ = ['spec_from_sum']
 
 
-def spec_from_sum(filename, alfvar=None, getsum = 'minchi2', 
+def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2', 
                   returnspec = False, 
                   resdir = "{0}results".format(ALF_HOME)):
     """
@@ -30,8 +30,10 @@ def spec_from_sum(filename, alfvar=None, getsum = 'minchi2',
         
         
     #!-----------------------------------------------------------!
-    if alfvar is None:
+    if in_alfvar is None:
         alfvar = pickle.load(open('alfvar_sspgrid_irldss3_imftype1.p', "rb" ))
+    else:
+        alfvar = copy.deepcopy(in_alfvar)
         
         
     #read in the header to set the relevant parameters
@@ -70,7 +72,7 @@ def spec_from_sum(filename, alfvar=None, getsum = 'minchi2',
  
     #!-----------------------------------------------------------!
     alfvar.l1[0] = 0.0
-    alfvar.l2[0] = 1e5
+    alfvar.l2[alfvar.nlint-1] = 1e5
     
     # mean burned in f90 code
     if getsum == 'mean':

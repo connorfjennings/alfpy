@@ -55,12 +55,7 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
     - Note that the h3 and h4 coefficients are passed through the ires
       array as well, and in this mode the broadening is also in the "simple" mode
     - INPUTS:
-        lambda
-        spec
-        sigma
-        minl
-        maxl
-        (ires)
+        lambda, spec, sigma, minl, maxl, (ires)
     - OUTPUTS:
         spec
     """
@@ -79,18 +74,18 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
 
     #no broadening for small sigma
     if sigma <= 10.:
-        return spec_
+        return spec
     elif sigma >= 1e4:
         print("VELBROAD ERROR: sigma>1E4 km/s - you've "\
               "probably done something wrong...")
-        return spec_
+        return spec
 
-    # ---- compute smoothing the slightly less accurate way
-    # ---- but the **only way** in the case of wave-dep smoothing
+    # ---- !compute smoothing the slightly less accurate way
+    # ---- !but the **only way** in the case of wave-dep smoothing
     if (velbroad_simple==1) or (ires is not None):
         tspec = np.copy(spec)
         sigmal_arr_exist = False
-        spec[np.logical_and(lam>=minl, lam<=maxl)] = 0.0 #??? check
+        #spec[np.logical_and(lam>=minl, lam<=maxl)] = 0.0 #??? check
         if (ires is not None):
             if ires.size > 2:
                 sigmal_arr = ires
@@ -114,7 +109,6 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
             
         ih_arr = np.array([np.argmin(abs(lam - i)) for i in xmax])
         ih_arr[ih_arr>nn] = nn
-        #il_arr = np.copy( 2*(np.arange(nn)+1) - (ih_arr+1))-1
         il_arr = 2*np.arange(nn) - ih_arr
         il_arr[il_arr<0] = 0
         useindex = np.arange(nn)[(lam>=minl)&(lam<=maxl)&(ih_arr != il_arr)]
@@ -140,21 +134,23 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
     # ---- !compute smoothing the correct way (convolution in dloglambda)
     else:
         # ---- !fancy footwork to allow for input spectra of either length
-        if nn==alfvar.nl:
+        if nn == alfvar.nl:
             n2 = alfvar.nl_fit
         else:
             n2 = alfvar.nl
         
+        dlstep = alfvar.dlstep
+        lnlam = alfvar.lnlam
         if alfvar.dlstep ==0:
-            alfvar.dlstep = (math.log(alfvar.sspgrid.lam[-1])-math.log(alfvar.sspgrid.lam[0]))/alfvar.sspgrid.lam.size
-            alfvar.lnlam = np.arange(alfvar.nl_fit)*alfvar.dlstep+math.log(alfvar.sspgrid.lam[0])
+            dlstep = (math.log(alfvar.sspgrid.lam[-1])-math.log(alfvar.sspgrid.lam[0]))/alfvar.sspgrid.lam.size
+            lnlam = np.arange(alfvar.nl_fit)*dlstep+math.log(alfvar.sspgrid.lam[0])
             
-        fwhm = sigma*2.35482/clight*1e5/alfvar.dlstep
+        fwhm = sigma*2.35482/clight*1e5/dlstep
         psig = fwhm/2./math.sqrt(-2.0*math.log(0.5)) #! equivalent sigma for kernel
 
         grange = math.floor(m*psig) #! range for kernel (-range:range)
         if grange >1:
-            tspec = linterp(np.log(lam[0:n2]), spec[0:n2], alfvar.lnlam[0:n2])
+            tspec = linterp(np.log(lam[0:n2]), spec[0:n2], lnlam[0:n2])
             nspec = np.copy(tspec)
             
             tem_ = 1.0/math.sqrt(2*mypi)/psig
@@ -165,14 +161,72 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
                 nspec[i] = np.nansum(psf*tspec[i-grange:i+grange+1])
 
             # ---- !interpolate back to the main array
-            spec[:n2] = linterp(np.exp(alfvar.lnlam[:n2]),nspec[:n2],lam[:n2])    
+            spec[:n2] = linterp(np.exp(lnlam[:n2]),nspec[:n2],lam[:n2])    
     
     return spec
         
             
+# -------------------------------------------------------------------------!
+def velbroad2(lam, spec, sigma, minl=None, maxl=None, 
+             ires=None, velbroad_simple = 1, alfvar=None):
+    """
+    !routine to compute velocity broadening of an input spectrum
+    !the PSF kernel has a width of m*sigma, where m=4
+    - slower than velbroad-simple  512ms vs 465ms
+    """
+    lam = np.copy(lam)
+    spec = np.copy(spec)
+    
+    if minl ==None:
+        minl = np.nanmin(lam)
+    if maxl ==None:
+        maxl = np.nanmax(lam)    
+    nn = lam.size
 
+    m = 6
+    h3 = 0.0
+    h4 = 0.0
 
-  
+    #no broadening for small sigma
+    if sigma <= 10.:
+        return spec
+    elif sigma >= 1e4:
+        print("VELBROAD ERROR: sigma>1E4 km/s - you've "\
+              "probably done something wrong...")
+        return spec
 
-
-
+    # ---- !compute smoothing the slightly less accurate way
+    # ---- !but the **only way** in the case of wave-dep smoothing
+    if (velbroad_simple==1) or (ires is not None):
+        tspec = np.copy(spec)
+        sigmal_arr_exist = False
+        
+        for i in range(nn):
+            if lam[i]<minl or lam[i]>maxl:
+                spec[i] = tspec[i]
+            if ires is not None:
+                if ires.size>2:
+                    sigmal = ires[i]
+                    h3 = 0.
+                    h4 = 0.
+                else:
+                    sigmal = sigma
+                    h3 = ires[0]
+                    h4 = ires[1]
+            else:
+                sigmal = sigma
+                
+            xmax = lam[i] * (m*sigmal/clight*1e5+1.)
+            ih = min(locate(lam[:nn], xmax), nn-1)
+            il = max(2*i-ih, 0)
+        
+            if il==ih:
+                spec[i] = tspec[i]
+            else:
+                vel = (lam[i]/lam[il:ih]-1)*clight/1e5
+                temr = vel/sigmal
+                func = (1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2) * (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) ))
+                func /= tsum(vel, func)
+                spec[i] = tsum(vel,func*tspec[il:ih])
+                
+    return spec

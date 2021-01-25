@@ -1,4 +1,4 @@
-import pickle, numpy as np
+import math, pickle, numpy as np
 #from alf_vars import *
 from velbroad import *
 from linterp import *
@@ -33,7 +33,6 @@ def getmodel(pos, alfvar = None, mw = 0):
     imfr1, imfr2,  imfr3 = alfvar.imfr1, alfvar.imfr2, alfvar.imfr3
         
     spec = np.empty(alfvar.nl) # output
-    tmp, tmpr, yspec, tmp1, tmp2, tmp3, tmp4 = np.empty((7, alfvar.nl))
     tmp_ltrans, tmp_ftrans_h2o, tmp_ftrans_o2 = np.empty((3, alfvar.nl))
     emnormall = np.ones(alfvar.neml)
     imfw = np.zeros(alfvar.nimfnp)
@@ -46,7 +45,6 @@ def getmodel(pos, alfvar = None, mw = 0):
     vt = max(min(locate(sspgrid.logagegrid, pos.logage),alfvar.nage-2),0)
     dt = (pos.logage - sspgrid.logagegrid[vt])/(sspgrid.logagegrid[vt+1]-sspgrid.logagegrid[vt])
     dt = max(min(dt, 1.2), -0.3)    # 0.5<age<14 Gyr
-    print('logage vt, dt, =', vt, dt, pos.logage)
 
     # ---- set up interpolants for metallicity
     vm = max(min(locate(sspgrid.logzgrid, pos.zh), nzmet-2), 0)
@@ -55,73 +53,70 @@ def getmodel(pos, alfvar = None, mw = 0):
 
     # ---- compute the IMF-variable SSP
     if (alfvar.mwimf == 0) and (mw==0) and (alfvar.fit_type==0) and (alfvar.powell_fitting==0):
-        #print("---- getting model for mwimf = ", alfvar.mwimf, ", fit_type=", alfvar.fit_type)
+        
         vv1 = max(min(locate(sspgrid.imfx1, pos.imf1), nimf-2), 0)
         dx1 = (pos.imf1-sspgrid.imfx1[vv1])/(sspgrid.imfx1[vv1+1]-sspgrid.imfx1[vv1])
         dx1 = max(min(dx1, 1.0), 0.0)
 
-        if alfvar.imf_type ==0 or alfvar.imf_type ==2:
-            #print("getting model for imf_type=", alfvar.imf_type)
-            #single power-law slope for IMF=0,2
+        if alfvar.imf_type in [0, 2]:
+            # ---- single power-law slope for IMF=0,2
             vv2 = vv1
             dx2 = dx1
         else:
-            #print("getting model for imf_type=", alfvar.imf_type)
-            #two-part power-law for IMF=1,3
+            # ---- two-part power-law for IMF=1,3
             vv2 = max(min(locate(sspgrid.imfx2, pos.imf2), nimf-2),0)
             dx2 = (pos.imf2-sspgrid.imfx2[vv2])/(sspgrid.imfx2[vv2+1]-sspgrid.imfx2[vv2])
             dx2 = max(min(dx2, 1.0),0.0)
 
             
         if alfvar.imf_type == 2 or alfvar.imf_type == 3:
-            #print("getting model for imf_type=", alfvar.imf_type)
-            #variable low-mass cutoff for IMF=2,3, line 58 in getmodel.f90
+            # ---- variable low-mass cutoff for IMF=2,3, line 58 in getmodel.f90
             vv3 = max(min(locate(sspgrid.imfx3,pos.imf3), alfvar.nmcut-2),0)
             dx3 = (pos.imf3-sspgrid.imfx3[vv3])/(sspgrid.imfx3[vv3+1]-sspgrid.imfx3[vv3])
             dx3 = max(min(dx3, 1.0), 0.0)
+            
 
+        if alfvar.imf_type == 2 or alfvar.imf_type == 3:
             vm3 = max(min(locate(sspgrid.logzgrid2, pos.zh), nzmet3-2),0) 
             dm3 = (pos.zh-sspgrid.logzgrid2[vm3])/(sspgrid.logzgrid2[vm3+1]-sspgrid.logzgrid2[vm3])
             dm3 = max(min(dm3, 1.5), -1.0)
-            print('vv1, vv2, vt, vv3, vm=', vv1, vv2, vt, vv3, vm3)
-            
 
             tmp1 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3,vm3+1] + 
-                    (dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3,vm3+1] + 
-                    (1-dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3,vm3+1] + 
-                    (1-dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3+1,vm3+1] + 
-                    (dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3+1,vm3+1] + 
-                    (1-dx1)*(dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3+1,vm3+1] + 
-                    (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3,vm3+1] + 
-                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3+1,vm3+1])
+                   dx1*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3,vm3+1] + 
+                   (1-dx1)*dx2*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3,vm3+1] + 
+                   (1-dx1)*(1-dx2)*dx3*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3+1,vm3+1] + 
+                   dx1*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3+1,vm3+1] + 
+                   (1-dx1)*dx2*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3+1,vm3+1] + 
+                   (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3,vm3+1] + 
+                   dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3+1,vm3+1])
 
             tmp2 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt,vv3,vm3+1] + 
-                    (dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3,vm3+1] + 
-                    (1-dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3,vm3+1] + 
-                    (1-dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2,vt,vv3+1,vm3+1] + 
-                    (dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3+1,vm3+1] + 
-                    (1-dx1)*(dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3+1,vm3+1] + 
-                    (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3,vm3+1] + 
-                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3+1])
+                   dx1*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3,vm3+1] + 
+                   (1-dx1)*dx2*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3,vm3+1] + 
+                   (1-dx1)*(1-dx2)*dx3*sspgrid.logsspm[:,vv1,vv2,vt,vv3+1,vm3+1] + 
+                   dx1*(1-dx2)*dx3*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3+1,vm3+1] + 
+                   (1-dx1)*(dx2)*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3+1,vm3+1] + 
+                   dx1*dx2*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3,vm3+1] + 
+                   dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3+1])
 
             tmp3 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3,vm3] + 
-                    (dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3,vm3] + 
-                    (1-dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3,vm3] + 
-                    (1-dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3+1,vm3] + 
-                    (dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3+1,vm3] + 
-                    (1-dx1)*(dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3+1,vm3] + 
-                    (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3,vm3] + 
-                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3+1,vm3])
+                   dx1*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3,vm3] + 
+                   (1-dx1)*dx2*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3,vm3] + 
+                   (1-dx1)*(1-dx2)*dx3*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3+1,vm3] + 
+                   dx1*(1-dx2)*dx3*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3+1,vm3] + 
+                   (1-dx1)*dx2*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3+1,vm3] + 
+                   dx1*dx2*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3,vm3] + 
+                   dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3+1,vm3])
 
                 
-            tmp4 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt,vv3,vm3] + \
-                    (dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3,vm3] + \
-                    (1-dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3,vm3] + \
-                    (1-dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2,vt,vv3+1,vm3] + \
-                    (dx1)*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3+1,vm3] + \
-                    (1-dx1)*(dx2)*(dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3+1,vm3] + \
-                    (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3,vm3] + \
-                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3])
+            tmp4 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt,vv3,vm3] + 
+                   dx1*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3,vm3] + 
+                   (1-dx1)*dx2*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3,vm3] + 
+                   (1-dx1)*(1-dx2)*dx3*sspgrid.logsspm[:,vv1,vv2,vt,vv3+1,vm3] + 
+                   dx1*(1-dx2)*dx3*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3+1,vm3] + 
+                   (1-dx1)*dx2*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3+1,vm3] + 
+                   dx1*dx2*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3,vm3] + 
+                   dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3])
 
             spec = np.power(10, dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
 
@@ -130,26 +125,26 @@ def getmodel(pos, alfvar = None, mw = 0):
             #print("getting model for imf_type=", alfvar.imf_type)
 
             tmp1 = ((1.0-dx1)*(1.0-dx2)*sspgrid.logssp[:, vv1,vv2,vt+1,vm+1] + 
-                    dx1*(1.0-dx2)*sspgrid.logssp[:, vv1+1,vv2,vt+1,vm+1] + 
-                    (1.0-dx1)*dx2*sspgrid.logssp[:, vv1,vv2+1,vt+1,vm+1] + 
-                    dx1*dx2*sspgrid.logssp[:, vv1+1,vv2+1,vt+1,vm+1])
+                   dx1*(1.0-dx2)*sspgrid.logssp[:, vv1+1,vv2,vt+1,vm+1] + 
+                   (1.0-dx1)*dx2*sspgrid.logssp[:, vv1,vv2+1,vt+1,vm+1] + 
+                   dx1*dx2*sspgrid.logssp[:, vv1+1,vv2+1,vt+1,vm+1])
 
             tmp2 = ((1.0-dx1)*(1.0-dx2)*sspgrid.logssp[:,vv1,vv2,vt,vm+1] + 
-                    dx1*(1.0-dx2)*sspgrid.logssp[:,vv1+1,vv2,vt,vm+1] +
-                    (1.0-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt,vm+1] + 
-                    dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt,vm+1])
+                   dx1*(1.0-dx2)*sspgrid.logssp[:,vv1+1,vv2,vt,vm+1] +
+                   (1.0-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt,vm+1] + 
+                   dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt,vm+1])
 
             tmp3 = ((1-dx1)*(1-dx2)*sspgrid.logssp[:,vv1,vv2,vt+1,vm] +  
-                    dx1*(1-dx2)*sspgrid.logssp[:,vv1+1,vv2,vt+1,vm] + 
-                    (1-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt+1,vm] + 
-                    dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt+1,vm])
+                   dx1*(1-dx2)*sspgrid.logssp[:,vv1+1,vv2,vt+1,vm] + 
+                   (1-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt+1,vm] + 
+                   dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt+1,vm])
 
             tmp4 = ((1-dx1)*(1-dx2)*sspgrid.logssp[:,vv1,vv2,vt,vm] + 
-                    dx1*(1-dx2)*sspgrid.logssp[:,vv1+1,vv2,vt,vm] + 
-                    (1-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt,vm] + 
-                    dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt,vm])
+                   dx1*(1-dx2)*sspgrid.logssp[:,vv1+1,vv2,vt,vm] + 
+                   (1-dx1)*dx2*sspgrid.logssp[:,vv1,vv2+1,vt,vm] + 
+                   dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt,vm])
 
-            spec = np.power(10,dt*dm*tmp1 + (1.0-dt)*dm*tmp2 + dt*(1.0-dm)*tmp3 +(1.0-dt)*(1.0-dm)*tmp4 )
+            spec = np.power(10,dt*dm*tmp1 + (1.-dt)*dm*tmp2 + dt*(1.-dm)*tmp3 +(1.-dt)*(1.-dm)*tmp4 )
 
             
         elif alfvar.imf_type == 4:
@@ -165,10 +160,10 @@ def getmodel(pos, alfvar = None, mw = 0):
             imfw[8-1] = 10**((alfvar.imf5+pos.imf4)/2.)
             imfw[9-1] = 10**alfvar.imf5
 
-            tmp1[:] = 0.0
-            tmp2[:] = 0.0
-            tmp3[:] = 0.0
-            tmp4[:] = 0.0
+            tmp1 = np.zeros(sspgrid.sspnp.shape[0])
+            tmp2 = np.zeros(sspgrid.sspnp.shape[0])
+            tmp3 = np.zeros(sspgrid.sspnp.shape[0])
+            tmp4 = np.zeros(sspgrid.sspnp.shape[0])
 
             for i in range(alfvar.nimfnp):
                 tmp1 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm+1]
@@ -219,18 +214,15 @@ def getmodel(pos, alfvar = None, mw = 0):
 
     else:
         # ---- compute a Kroupa IMF, line196
-        #print('get kroupa:', dt, dm, vt, vm)
         spec = np.power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
-                    (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
-                    dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
-                    (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
-        return spec
+                        (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
+                        dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
+                        (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
 
 
     # ---- vary young population - both fraction and age
     # ---- only include these parameters in the "full" model
     if (alfvar.fit_type==0) and (alfvar.powell_fitting == 0) and (alfvar.fit_two_ages ==1):
-        #print('vary young population')
         fy = max(min(10**pos.logfy, 1.0), 0.0)
         vy = max(min(locate(sspgrid.logagegrid, pos.fy_logage), nage-2),0)
         dy = (pos.fy_logage-sspgrid.logagegrid[vy])/(sspgrid.logagegrid[vy+1]-sspgrid.logagegrid[vy])
@@ -271,35 +263,34 @@ def getmodel(pos, alfvar = None, mw = 0):
     # line 250
     if (alfvar.powell_fitting ==0) and (alfvar.fit_type != 2):
         #vary [Fe/H]
-        spec = add_response(spec, pos.feh, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.fep,sspgrid.fem)
+        spec = add_response(spec, pos.feh, 0.3, dr,vr,dm2,vm2, 
+                            sspgrid.solar, sspgrid.fep,sspgrid.fem)
         #vary [O/H]
-        spec = add_response(spec, pos.ah, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.ap)
+        spec = add_response(spec, pos.ah, 0.3, dr,vr,dm2,vm2, 
+                            sspgrid.solar, sspgrid.ap)
         #vary [C/H]
         spec = add_response(spec, pos.ch, 0.15,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.cp,sspgrid.cm)
+                            sspgrid.solar, sspgrid.cp, sspgrid.cm)
         #vary [N/H]
         spec = add_response(spec, pos.nh, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.np,sspgrid.nm)
+                            sspgrid.solar, sspgrid.np, sspgrid.nm)
         #vary [Mg/H]
         spec = add_response(spec, pos.mgh, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.mgp,sspgrid.mgm)
+                            sspgrid.solar, sspgrid.mgp, sspgrid.mgm)
         #vary [Si/H]
         spec = add_response(spec, pos.sih, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.sip,sspgrid.sim)
+                            sspgrid.solar, sspgrid.sip, sspgrid.sim)
         #vary [Ca/H]
         spec = add_response(spec, pos.cah, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.cap,sspgrid.cam)
+                            sspgrid.solar, sspgrid.cap, sspgrid.cam)
         #vary [Ti/H]
         spec = add_response(spec, pos.tih, 0.3,dr,vr,dm2,vm2, 
-                            sspgrid.solar,sspgrid.tip,sspgrid.tim)
-        
+                            sspgrid.solar, sspgrid.tip, sspgrid.tim)
         #vary [Na/H] (special case)
         if pos.nah < 0.3:
             spec = add_response(spec, pos.nah, 0.3, dr,vr,dm2,vm2, 
                                 sspgrid.solar,sspgrid.nap,sspgrid.nam)
-
+            
             
         elif pos.nah >= 0.3 and pos.nah < 0.6:
 
@@ -313,7 +304,7 @@ def getmodel(pos, alfvar = None, mw = 0):
                    dr*(1-dm2)*(sspgrid.nap6[:,vr+1,vm2]-sspgrid.nap[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+
                    (1-dr)*(1-dm2)*(sspgrid.nap6[:,vr,vm2]-sspgrid.nap[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
 
-            spec = spec * (tmpr+tmp*(pos.nah-0.3)/0.3 )
+            spec *= tmpr+tmp*(pos.nah-0.3)/0.3
 
                    
         elif pos.nah >= 0.6:
@@ -328,55 +319,55 @@ def getmodel(pos, alfvar = None, mw = 0):
                    dr*(1-dm2)*(sspgrid.nap9[:,vr+1,vm2]-sspgrid.nap6[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+
                    (1-dr)*(1-dm2)*(sspgrid.nap9[:,vr,vm2]-sspgrid.nap6[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
 
-            spec = spec * (tmpr+tmp*(pos.nah-0.6)/0.6 )
+            spec *= tmpr+tmp*(pos.nah-0.6)/0.6
 
 
 
-    #only include these parameters in the "full" model, line325
+    # ---- only include these parameters in the "full" model, line325
     if alfvar.fit_type==0 and alfvar.powell_fitting==0:
                    
-        #vary Teff (special case - force use of the 13 Gyr model)
-        spec = add_response(spec, pos.teff, 50.,
-                            1.0, alfvar.nage_rfcn-2, dm2, vm2,
+        # ---- vary Teff (special case - force use of the 13 Gyr model)
+        spec = add_response(spec, pos.teff, 50.,1.0, alfvar.nage_rfcn-2, dm2, vm2,
                             sspgrid.solar, sspgrid.teffp, sspgrid.teffm)
-                   
-        #add a hot star (interpolate in hot_teff and [Z/H]
+         
+        # ---- add a hot star (interpolate in hot_teff and [Z/H]
         vh   = max(min(locate(sspgrid.teffarrhot, pos.hotteff), alfvar.nhot-2), 0)
         dh   = (pos.hotteff-sspgrid.teffarrhot[vh])/(sspgrid.teffarrhot[vh+1]-sspgrid.teffarrhot[vh])
+        
         tmp  = (dh*dm*sspgrid.hotspec[:,vh+1,vm+1] + 
-                (1-dh)*dm*sspgrid.hotspec[:,vh,vm+1] + 
-                dh*(1-dm)*sspgrid.hotspec[:,vh+1,vm] + 
-                (1-dh)*(1-dm)*sspgrid.hotspec[:,vh,vm])
+               (1-dh)*dm*sspgrid.hotspec[:,vh,vm+1] + 
+               dh*(1-dm)*sspgrid.hotspec[:,vh+1,vm] + 
+               (1-dh)*(1-dm)*sspgrid.hotspec[:,vh,vm])
 
         fy   = max(min(10**pos.loghot, 1.0), 0.0)
         spec = (1-fy)*spec + fy*tmp
 
-        #add in an M7 giant
+        # ---- add in an M7 giant
         fy   = max(min(10**pos.logm7g, 1.0), 0.0)
         spec = (1.0-fy)*spec + fy*sspgrid.m7g
 
-        #vary [K/H]
+        # ---- vary [K/H] ---- #
         spec = add_response(spec,pos.kh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.kp)
-        #vary [V/H]
+        # ---- vary [V/H]
         spec = add_response(spec,pos.vh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.vp)
-        #vary [Cr/H]
+        # ---- vary [Cr/H]
         spec = add_response(spec,pos.crh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.crp)
-        #vary [Mn/H]
+        # ---- vary [Mn/H]
         spec = add_response(spec,pos.mnh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.mnp)
-        #vary [Co/H]
+        # ---- vary [Co/H]
         spec = add_response(spec,pos.coh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.cop)
-        #vary [Ni/H]
+        # ---- vary [Ni/H]
         spec = add_response(spec,pos.nih,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.nip)
-        #vary [Cu/H]
+        # ---- vary [Cu/H]
         spec = add_response(spec,pos.cuh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.cup)
-        #vary [Sr/H]
+        # ---- vary [Sr/H]
         spec = add_response(spec,pos.srh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.srp)
-        #vary [Ba/H]
+        # ---- vary [Ba/H]
         spec = add_response(spec,pos.bah,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.bap,sspgrid.bam)
-        #vary [Eu/H]
+        # ---- vary [Eu/H]
         spec = add_response(spec,pos.euh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.eup)
 
-                
+        
         #add emission lines
         if alfvar.maskem==0:
             #these line ratios come from Nell Byler's Cloudy lookup table
@@ -401,40 +392,36 @@ def getmodel(pos, alfvar = None, mw = 0):
             emnormall[19-1] = 10**pos.logemline_h / 18.0    # H7
 
             for i in range(alfvar.neml):
-                #allow the em lines to be offset in velocity from the continuum
-                #NB: velz2 is a *relative* shift between continuum and lines
+                # ---- allow the em lines to be offset in velocity from the continuum
+                # ---- NB: velz2 is a *relative* shift between continuum and lines
                 ve   = alfvar.emlines[i]/(1+pos.velz2/clight*1e5)
                 lsig = max(ve*pos.sigma2/clight*1e5, 1.0)  #min dlam=1.0A
                 spec += emnormall[i] * np.exp(-(sspgrid.lam-ve)**2/lsig**2/2.0)
 
 
-    #velocity broaden the model
-    if np.nanstd(spec) == 0:
-        print('bad spec model, ', str2arr(1, instr = pos))
-        
-        
+    #velocity broaden the model       
     if pos.sigma > 5. and alfvar.fit_indices==0:
         if alfvar.fit_hermite == 1:
             hermite[0] = pos.h3
             hermite[1] = pos.h4
             spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
-                            hermite, velbroad_simple=0, alfvar=alfvar)
+                            hermite, velbroad_simple=1, alfvar=alfvar)
         else:
-            spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
+            spec = velbroad(sspgrid.lam, spec, pos.sigma, np.nanmin(alfvar.l1), np.nanmax(alfvar.l2), 
                             velbroad_simple = 0, alfvar=alfvar)
 
 
-    #apply an atmospheric transmission function only in full mode
-    #note that this is done *after* velocity broadening
+    # ---- apply an atmospheric transmission function only in full mode
+    # ---- note that this is done *after* velocity broadening
     if alfvar.fit_type== 0 and alfvar.powell_fitting==0 and alfvar.fit_trans==1:
         #applied in the observed frame
         tmp_ltrans     = sspgrid.lam / (1+pos.velz/clight*1e5)
         tmp_ftrans_h2o = linterp(tmp_ltrans, sspgrid.atm_trans_h2o, sspgrid.lam)
         tmp_ftrans_o2  = linterp(tmp_ltrans, sspgrid.atm_trans_o2, sspgrid.lam)
-        spec = spec * (1.+(tmp_ftrans_h2o-1)*np.power(10,pos.logtrans))
-        spec = spec * (1.+(tmp_ftrans_o2-1)*np.power(10,pos.logtrans))
+        spec *= 1.+(tmp_ftrans_h2o-1)*10**pos.logtrans
+        spec *= 1.+(tmp_ftrans_o2-1)*10**pos.logtrans
 
-    #apply a template error function
+    # ---- apply a template error function
     if alfvar.apply_temperrfcn==1:
         spec = spec / alfvar.temperrfcn
                              

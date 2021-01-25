@@ -1,4 +1,7 @@
 import os, numpy as np
+from itertools import takewhile
+import re
+
 from alf_vars import *
 from astropy.io import ascii as astro_ascii
 from linterp import *
@@ -41,24 +44,12 @@ def read_data(alfvar, sigma=None, velz=None):
 
 
     # ---- Read in the wavelength boundaries, which are in the header-----!
-    char='#'
-    with open ('{0}indata/{1}.dat'.format(ALF_HOME, filename), "r") as myfile:
-        temdata=myfile.readlines()
-
-    header = []
-    for iline in temdata:
-        if iline.split(' ')[0] == char:
-            temline = np.array(iline.split(' ')[1:])
-            header_item = []
-            for iitem in temline:
-                if len(iitem.split('\n'))>1:
-                    header_item.append(float(iitem.split('\n')[0]))
-                else:
-                    header_item.append(float(iitem))
-            header.append(np.array(header_item))
-            
-    #spec = astro_ascii.read('{0}indata/{1}.dat'.format(ALF_HOME, filename))
-    header = np.asarray(header)
+    with open('{0}indata/{1}.dat'.format(ALF_HOME, filename), 'r') as fobj:
+        headiter = takewhile(lambda s: s.startswith('#'), fobj)
+        header = list(headiter)
+        
+    header = np.array([list(filter(None, re.split('#|\s+|\n', i))) for i in header])
+    header = header.astype(float)
     nlint = header.shape[0]
     if nlint == 0:
         header = [np.array(0.40, 0.47), np.array(0.47, 0.55)]
@@ -68,6 +59,7 @@ def read_data(alfvar, sigma=None, velz=None):
     header *= 1e4
     alfvar.l1 = np.asarray(np.copy(header[:,0]))
     alfvar.l2 = np.asarray(np.copy(header[:,1]))
+    print('l1, l2', alfvar.l1, alfvar.l2)
 
     #--------now read in the input spectrum, errors, and weights----------!
     alfvar.nlint = nlint
@@ -82,8 +74,9 @@ def read_data(alfvar, sigma=None, velz=None):
     alfvar.data.err = np.copy(spec['col3'].data)
     alfvar.data.wgt = np.copy(spec['col4'].data)
     alfvar.data.ires = np.copy(spec['col5'].data)
+    alfvar.data.sky = np.zeros_like(alfvar.data.lam)
 
-            
+    
     if np.logical_and(sigma is not None, velz is not None):
         return alfvar, isig, ivelz
     

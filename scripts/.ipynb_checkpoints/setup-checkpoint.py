@@ -99,7 +99,7 @@ def setup(alfvar, onlybasic = False, ncpu=4):
         lamhi = 2.4e4
     else:
         lamlo = alfvar.l1[0]-500
-        lamhi = alfvar.l2[alfvar.nlint-1]+500
+        lamhi = alfvar.l2[-1]+500  
 
     # -- read in filter transmission curves
     try:
@@ -445,6 +445,7 @@ def setup(alfvar, onlybasic = False, ncpu=4):
               
         tstart = time.time()
         pool = multiprocessing.Pool(ncpu)
+        # ---- define partial worker for all velbroad---- #
         pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth)
         for iattr in temlist:
             print('\n smooth response func ', iattr, end=':')
@@ -502,10 +503,15 @@ def setup(alfvar, onlybasic = False, ncpu=4):
         # ---- smooth the non-parametric IMF models ---- #
         print('-------- smooth the non-parametric IMF models')
         if alfvar.imf_type == 4:
-            for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0]):
-                alfvar.sspgrid.sspnp[:,j,t,z] = velbroad(alfvar.sspgrid.lam, alfvar.sspgrid.sspnp[:,j,t,z],
-                                                         sig0,lamlo,lamhi,smooth,
-                                                         velbroad_simple = 1)
+            index_list = [(j, t, z) for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0])]
+            temarr = pool.map(pwork, [alfvar.sspgrid.sspnp[:,j,t,z] for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0])] )
+            for ii, (j, t, z) in enumerate(index_list):
+                alfvar.sspgrid.sspnp[:,j,t,z] = np.copy(temarr[ii])     
+            
+            #for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0]):
+            #    alfvar.sspgrid.sspnp[:,j,t,z] = velbroad(alfvar.sspgrid.lam, alfvar.sspgrid.sspnp[:,j,t,z],
+            #                                             sig0,lamlo,lamhi,smooth,
+            #                                             velbroad_simple = 1)
 
 
     alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)

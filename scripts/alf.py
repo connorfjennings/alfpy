@@ -1,25 +1,27 @@
 import os, sys, copy, pickle, numpy as np
-from func import func
-from alf_vars import *
-from set_pinit_priors import *
-from alf_constants import *
 import emcee, time
 from multiprocessing import Pool
 import dynesty
 from dynesty import NestedSampler, DynamicNestedSampler
+from contextlib import closing
+
+from func import func
+from alf_vars import *
+from alf_constants import *
 from priors import TopHat
 from read_data import *
 from linterp import *
 from str2arr import *
 from getvelz import getvelz
-from contextlib import closing
+from setup import *
+from set_pinit_priors import *
+
 
 
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
-            'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',]
+use_keys = ['velz', 'sigma', 'logage', 'zh',]
 
 
 # -------------------------------------------------------- #
@@ -28,10 +30,9 @@ def log_prob(posarr):
     if not np.isfinite(ln_prior):
         return -np.inf
 
-    return ln_prior - 0.5*func(global_alfvar, posarr,
-                             prhiarr=global_prhiarr,
-                             prloarr=global_prloarr,
-                             usekeys=use_keys)
+    return ln_prior - 0.5*func(global_alfvar, posarr, prhiarr=global_prhiarr,
+                               prloarr=global_prloarr, usekeys=use_keys)
+
 
 # -------------------------------------------------------- #
 def log_prob_nested(posarr):
@@ -39,10 +40,9 @@ def log_prob_nested(posarr):
     if not np.isfinite(ln_prior):
         return -np.infty
 
-    return ln_prior - 0.5*func(global_alfvar, posarr,
-                     prhiarr=global_prhiarr,
-                     prloarr=global_prloarr,
-                     usekeys=use_keys)
+    return ln_prior - 0.5*func(global_alfvar, posarr, prhiarr=global_prhiarr,
+                               prloarr=global_prloarr, usekeys=use_keys)
+
 
 # -------------------------------------------------------- #
 def prior_transform(unit_coords):
@@ -65,7 +65,7 @@ def lnprior(in_arr, nested=False):
 
 # -------------------------------------------------------- #
 def alf(filename, alfvar=None, tag='', run='dynesty',
-        model_arr = None):
+        model_arr = None, ncpu=4):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -107,12 +107,12 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             print('No existing model array.  We will create one and pickle dump it to '+pickle_model_name)
             alfvar = ALFVAR()
 
-    nmcmc = 1000    # -- number of chain steps to print to file
+    nmcmc = 300    # -- number of chain steps to print to file
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 100    # -- length of chain burn-in
-    nwalkers = 128    # -- number of walkers
+    nburn = 0    # -- length of chain burn-in
+    nwalkers = 512    # -- number of walkers
     print_mcmc = 1; print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
 
     dopowell = 0  # -- start w/ powell minimization?
@@ -134,10 +134,8 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     mspec, mspecmw, lam = np.zeros((3, nl))
     m2l, m2lmw = np.zeros((2, nfil))
     oposarr, bposarr = np.zeros((2, npar))
-    mpiposarr = np.zeros((npar,nwalkers))
-    runtot = np.zeros((3,npar+2*nfil))
-    cl2p5,cl16,cl50,cl84,cl97p5 = np.zeros((5, npar+2*nfil))
-    #mcmcpar = np.zeros((npar+2*nfil, nwalkers*nmcmc/nsample))
+    #runtot = np.zeros((3,npar+2*nfil))
+    #cl2p5,cl16,cl50,cl84,cl97p5 = np.zeros((5, npar+2*nfil))
 
     #---------------------------------------------------------------!
     #---------------------------Setup-------------------------------!
@@ -188,10 +186,12 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
     # ---- dont fit transmission function in cases where the input
     # ---- spectrum has already been de-redshifted to ~0.0
-    #alfvar.fit_trans = 0
-    #prhi.logtrans = -5.0
-    #prhi.logsky   = -5.0
-    alfvar.fit_trans = 1
+    if alfvar.observed_frame == 0 or alfvar.fit_indices == 1:
+        alfvar.fit_trans = 0
+        prhi.logtrans = -5.0
+        prhi.logsky   = -5.0
+    else:
+        alfvar.fit_trans = 1
     """
     # ---- extra smoothing to the transmission spectrum.
     # ---- if the input data has been smoothed by a gaussian
@@ -262,13 +262,15 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
         if model_arr is None:
             print('\nsetting up model arry with given imf_type and input data\n')
-            print('It took me 3hrs. Will work on it...')
-            alfvar = setup(alfvar, onlybasic = False)
-            os.system('mkdir -p pickle')
-            pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
-            pickle.dump(alfvar, pickle_model_name)
+            tstart = time.time()
+            alfvar = setup(alfvar, onlybasic = False, ncpu=ncpu)
+            os.system('mkdir -p ../pickle')
+            pickle_model_name = '../pickle/alfvar_sspgrid_'+filename+'.p'
+            pickle.dump(alfvar, open(pickle_model_name, "wb" ))
+            ndur = time.time() - tstart
+            print('\n Total time for setup {:.2f}min'.format(ndur/60))
 
-            
+
         ## ---- This part requires alfvar.sspgrid.lam ---- ##
         lam = np.copy(alfvar.sspgrid.lam)
         # ---- interpolate the sky emission model onto the observed wavelength grid
@@ -341,11 +343,11 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     # ---------------------------------------------------------------- #
     if run == 'emcee':
         print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
-        nproc = 8
-        nwalkers = 256
+        tstart = time.time()
         npar = len(use_keys)
         np.random.seed(42)
         pos_emcee_in = np.empty((nwalkers, npar))
+
         for i, ikeys in enumerate(use_keys):
             if ikeys[:4] == 'velz' or ikeys[:4] == 'sigm':
                 pos_emcee_in[:,i] = oposarr[i] + 10.0*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
@@ -354,18 +356,18 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
         print('initial values of the first walker:\n', pos_emcee_in[0], '\n')
 
-        with closing(Pool(processes = nproc)) as pool:
+        with closing(Pool(processes = ncpu)) as pool:
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
-            start = time.time()
-            state = sampler.run_mcmc(pos_emcee_in, nmcmc, progress=True)
-            end = time.time()
-            multi_time = end - start
-            print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+            state = sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True)
 
-        res = sampler.get_chain()
-        pickle.dump(res, open('../res_emcee_res2.p', "wb" ) )
+        ndur = time.time() - tstart
+        print('\n Total time for emcee {:.2f}min'.format(ndur/60))
+        res = sampler.get_chain(discard = nburn) # discard: int, burn-in
+        prob = sampler.get_log_prob(discard = nburn)
+        pickle.dump(res, open('../emcee_chain_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
+        pickle.dump(prob, open('../emcee_prob_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
 
-
+        
     # ---------------------------------------------------------------- #
     elif run == 'dynesty':
         # ---------------------------------------------------------------- #
@@ -373,13 +375,12 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
         # ... need to learn how to optimize these parameters
         # instantiate sampler
         ndim = len(use_keys)
-        nproc = 4
 
-        with closing(Pool(processes=nproc)) as pool:
+        with closing(Pool(processes = ncpu)) as pool:
             dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform,ndim,
                                                     bound='multi', nlive=int(ndim)*50,
                                                     walks=25,
-                                                    pool=pool, queue_size=nproc)
+                                                    pool=pool, queue_size=ncpu)
 
             # generator for initial nested sampling
             ncall = dsampler.ncall
@@ -391,10 +392,17 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
 
         results = dsampler.results
-        pickle.dump(results, open('../res_dynesty_res2.p', "wb" ) )
+        pickle.dump(results, open('../dynesty_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
 
 
 
 # -------------------------------- #
-alf(filename='ldss3_dr247_n4055_Re4_wave6e', tag='', run='emcee',
-    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3_full.p')
+alf(filename='ldss3_test1', tag='', run='dynesty',
+    model_arr = '../pickle/alfvar_sspgrid_ldss3_test1.p',
+    ncpu = 8)
+
+
+
+
+
+

@@ -383,10 +383,10 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             if not pool.is_master():
                 pool.wait()
                 sys.exit(0)
+            nprocs = pool.size
             dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform,ndim,
                                                     bound='multi', nlive=int(ndim)*50,
-                                                    walks=25,
-                                                    pool=pool, queue_size=ncpu)
+                                                    walks=25, pool=pool, queue_size=nprocs)
 
             # generator for initial nested sampling
             ncall = dsampler.ncall

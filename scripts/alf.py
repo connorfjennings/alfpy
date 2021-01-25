@@ -5,6 +5,10 @@ import dynesty
 from dynesty import NestedSampler, DynamicNestedSampler
 from contextlib import closing
 
+import mpi4py
+from mpi4py import MPI
+from schwimmbad import MPIPool
+
 from func import func
 from alf_vars import *
 from alf_constants import *
@@ -17,12 +21,10 @@ from setup import *
 from set_pinit_priors import *
 
 
-
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh',]
-
+use_keys = ['velz', 'sigma', 'logage', 'zh']
 
 # -------------------------------------------------------- #
 def log_prob(posarr):
@@ -373,10 +375,14 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
         # ---------------------------------------------------------------- #
         # based on prospector
         # ... need to learn how to optimize these parameters
-        # instantiate sampler
+
         ndim = len(use_keys)
 
-        with closing(Pool(processes = ncpu)) as pool:
+        #with closing(Pool(processes = ncpu)) as pool:
+        with MPIPool() as pool:
+            if not pool.is_master():
+                pool.wait()
+                sys.exit(0)
             dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform,ndim,
                                                     bound='multi', nlive=int(ndim)*50,
                                                     walks=25,
@@ -386,14 +392,12 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             ncall = dsampler.ncall
             niter = dsampler.it - 1
             tstart = time.time()
-            dsampler.run_nested(dlogz_init=0.05)
+            dsampler.run_nested(dlogz_init=0.2)
             ndur = time.time() - tstart
-            print('\ndone dynesty (initial) in {0}s'.format(ndur))
-
+            print('\n Total time for dynesty {:.2f}min'.format(ndur/60))
 
         results = dsampler.results
         pickle.dump(results, open('../dynesty_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
-
 
 
 # -------------------------------- #

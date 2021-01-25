@@ -514,6 +514,7 @@ def setup(alfvar, onlybasic = False, ncpu=4):
             #                                             velbroad_simple = 1)
 
 
+    pool.close()
     alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)
     alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + tiny_number)
 

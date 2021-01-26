@@ -109,10 +109,13 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                                  coeff = True, return_poly = True)
             mflx  = zmspec * poly
             # ---- !compute chi^2
-            flx_i12 = np.copy(data.flx[i1:i2])
-            err_i12 = np.copy(data.err[i1:i2])
-            sky_i12 = np.copy(data.sky[i1:i2])
-            mflx_i12 = np.copy(mflx[i1:i2])
+            ind = np.isfinite(data.flx[i1:i2])
+            flx_i12 = np.copy(data.flx[i1:i2][ind])
+            err_i12 = np.copy(data.err[i1:i2][ind])
+            sky_i12 = np.copy(data.sky[i1:i2][ind])
+            lam_i12 = np.copy(data.lam[i1:i2][ind])
+            mflx_i12 = np.copy(mflx[i1:i2][ind])
+            poly_i12 = np.copy(poly[i1:i2][ind])
                 
             if alfvar.fit_type == 0:
                 # ---- !include jitter term
@@ -121,8 +124,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                 tocal_1 = np.square(flx_i12-mflx_i12)/(err_term + sky_term)
                 tocal_2 = np.log(2*mypi*(err_term + sky_term)) 
                 tchi2 = np.nansum(tocal_1 + tocal_2)
-                #print(np.nansum(sky_term), np.nansum(err_term), np.nansum(tocal_1), 
-                #      np.nansum(tocal_2))
             else:
                 # ---- !no jitter in simple mode
                 tchi2 = np.nansum( np.square(flx_i12-mflx_i12)/np.square(err_i12) )
@@ -134,7 +135,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                 print(" error occured at wavelength interval: ",i)
                 print( 'lam  data   err   model   poly')
                 for j in range(i1,i2):
-                    print("    {0}    {1}    {2}    {3}    {4}".format(data.lam[j],data.flx[j],
+                    print("{0} {1}{2} {3}{4}".format(data.lam[j],data.flx[j],
                           np.sqrt(data.err[j]**2*npos.jitter**2+(10**npos.logsky*data.sky[j])**2),
                           mflx[j],poly[j])
                          )
@@ -149,22 +150,25 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                 else:
                     terr = data.err
                     
-                combine_i12 = np.concatenate((data.lam[i1:i2].reshape(1, i2-i1), 
-                                              mflx_i12.reshape(1, i2-i1),
-                                              flx_i12.reshape(1, i2-i1), 
-                                              (flx_i12/terr).reshape(1, i2-i1), 
-                                              poly[i1:i2].reshape(1, i2-i1), 
-                                              err_i12.reshape(1, i2-i1),), axis=0)
+                len_i12 = len(lam_i12)
+                combine_i12 = np.concatenate((lam_i12.reshape(1, len_i12), 
+                                              mflx_i12.reshape(1, len_i12),
+                                              flx_i12.reshape(1, len_i12), 
+                                              (flx_i12/terr).reshape(1, len_i12), 
+                                              poly_i12.reshape(1, len_i12), 
+                                              err_i12.reshape(1, len_i12),), 
+                                             axis=0)
                 
                 if i==0:
                     outspec_arr = np.copy(combine_i12)
                 else:
                     outspec_arr = np.hstack((outspec_arr, combine_i12))
+                    
                 # ---- write final results to screen and file
-                print("%.2f um - %.2f um:  rms: %.2f percetn,Chi2/dof: %.2f" 
-                      %(tl1/1e4/oneplusz,tl2/1e4/oneplusz,
-                        np.sqrt(np.nansum( (flx_i12/mflx_i12-1)**2 )/(i2-i1+1) )*100,
-                        tchi2/(i2-i1)))
+                #print("%.2f um - %.2f um:  rms: %.2f percetn,Chi2/dof: %.2f" 
+                #      %(tl1/1e4/oneplusz, tl2/1e4/oneplusz,
+                #        np.sqrt(np.nansum( (flx_i12/mflx_i12-1)**2 )/(i2-i1+1) )*100,
+                #        tchi2/(i2-i1)))
 
 
     if funit == False:

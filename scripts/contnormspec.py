@@ -34,18 +34,16 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False):
     # ---- !divide by a power-law of degree npow. one degree per poly_dlam.
     # ---- !don't let things get out of hand (force Npow<=npolymax)
 
-    npow = min(int((il2-il1)/poly_dlam), npolymax)
+    npow = min(int((il2-il1)/poly_dlam), npolymax)-1
     i1 = min(max(locate(lam, il1-buff),0), n1-2)
     i2 = min(max(locate(lam, il2+buff),1), n1-1)+1
     ml = (il1+il2)/2.0
     
     #!simple linear least squares polynomial fit
-    res = np.polyfit(x = lam[i1:i2]-ml, 
-                     y = flx[i1:i2], 
-                     deg = npow, 
-                     full = True, 
-                     w = 1./np.square(err[i1:i2]), 
-                     cov = True)
+    ind = np.isfinite(flx[i1:i2])
+    res = np.polyfit(x = lam[i1:i2][ind]-ml, y = flx[i1:i2][ind], 
+                     deg = npow, full = True, 
+                     w = 1./np.square(err[i1:i2][ind]), cov = True)
     
     covar = res[2]
     chi2sqr = res[1]

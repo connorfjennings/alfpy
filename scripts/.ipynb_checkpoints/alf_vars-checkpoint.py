@@ -120,7 +120,7 @@ class ALFVAR(object):
         # -- nstart and nend allow us to use only a subset of
         # -- the full wavelength array
         self.nstart = 100 # 100   ! 0.36 um
-        self.nend   = 5830  #10566 (all) ! 5830 (1.10u)
+        self.nend   = 10566  #10566 (all) ! 5830 (1.10u)
         
         self.nl = self.nend - self.nstart + 1    # number of spectral elements in SSPs
         self.nl_fit = self.nl    # number actually used over the range to be fit

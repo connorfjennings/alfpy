@@ -24,7 +24,8 @@ from set_pinit_priors import *
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh']
+use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
+            'ah','ch','nh','nah','mgh','sih','cah','tih',]
 
 # -------------------------------------------------------- #
 def log_prob(posarr):
@@ -292,13 +293,17 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
         for i in range(alfvar.nl_fit):
             alfvar.lnlam[i] = i*alfvar.dlstep + np.log(alfvar.sspgrid.lam[0])
+            
+        # ---- test 01/25/21 ---- #
+        alfvar.data.flx[alfvar.data.wgt==0] = np.nan
+        alfvar.data.err[alfvar.data.wgt==0] = np.nan
         # ---- masked regions have wgt=0.0.  We'll use wgt as a pseudo-error
         # ---- array in contnormspec, so turn these into large numbers
         alfvar.data.wgt = 1./(alfvar.data.wgt+tiny_number)
         alfvar.data.wgt[alfvar.data.wgt>huge_number] = huge_number
         # ---- fold the masked regions into the errors
-        alfvar.data.err = alfvar.data.err * alfvar.data.wgt
-        alfvar.data.err[alfvar.data.err>huge_number] = huge_number
+        #alfvar.data.err = alfvar.data.err * alfvar.data.wgt
+        #alfvar.data.err[alfvar.data.err>huge_number] = huge_number
 
 
     # ---- set initial params, step sizes, and prior ranges

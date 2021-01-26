@@ -124,7 +124,6 @@ def setup(alfvar, onlybasic = False, ncpu=4):
         for j in range(alfvar.nage_rfcn):
             filename = "{0}infiles/atlas_ssp_{1}_Z{2}.abund."\
                        "{3}.s100".format(ALF_HOME, chart2[j], charz[k], alfvar.atlas_imf)
-            #f20 = np.loadtxt(filename)
             f20 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
 
             for icol, iattr in enumerate(f20_read_dict_attr):
@@ -514,7 +513,7 @@ def setup(alfvar, onlybasic = False, ncpu=4):
             #                                             velbroad_simple = 1)
 
 
-    pool.close()
+    #pool.close()
     alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)
     alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + tiny_number)
 

@@ -115,7 +115,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 0    # -- length of chain burn-in
+    nburn = 50000    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
     print_mcmc = 1; print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
 

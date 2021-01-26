@@ -5,9 +5,10 @@ import dynesty
 from dynesty import NestedSampler, DynamicNestedSampler
 from contextlib import closing
 
-import mpi4py
-from mpi4py import MPI
-from schwimmbad import MPIPool
+#import mpi4py
+#from mpi4py import MPI
+#from schwimmbad import MPIPool
+from schwimmbad import MultiPool
 
 from func import func
 from alf_vars import *
@@ -25,7 +26,7 @@ from set_pinit_priors import *
 global key_list
 global use_keys
 use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
-            'ah','ch','nh','nah','mgh','sih','cah','tih',]
+            'ah','ch','nh','mgh']
 
 # -------------------------------------------------------- #
 def log_prob(posarr):
@@ -363,7 +364,8 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
         print('initial values of the first walker:\n', pos_emcee_in[0], '\n')
 
-        with closing(Pool(processes = ncpu)) as pool:
+        #with closing(Pool(processes = ncpu)) as pool:
+        with MultiPool(ncpu) as pool:
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
             state = sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True)
 
@@ -383,15 +385,17 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
 
         ndim = len(use_keys)
 
-        with closing(Pool(processes = ncpu)) as pool:
+        with MultiPool(ncpu) as pool:
+        #with closing(Pool(processes = ncpu)) as pool:
         #with MPIPool() as pool:
         #    if not pool.is_master():
         #        pool.wait()
         #        sys.exit(0)
         #    nprocs = pool.size
-            dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform,ndim,
-                                                    bound='multi', nlive=int(ndim)*50,
-                                                    walks=25, pool=pool, queue_size=ncpu)
+            dsampler = dynesty.DynamicNestedSampler(log_prob_nested, prior_transform, ndim,
+                                                    bound='multi', nlive=int(50*ndim), sample='rwalk', 
+                                                    wt_kwargs={'pfrac': 1.0}, bootstrap=0,
+                                                    walks=25, pool=pool)
 
             # generator for initial nested sampling
             ncall = dsampler.ncall
@@ -402,13 +406,49 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             print('\n Total time for dynesty {:.2f}min'.format(ndur/60))
 
         results = dsampler.results
-        pickle.dump(results, open('../dynesty_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
+        pickle.dump(results, open('../dynesty_'+str(len(use_keys))+'param_'+alfvar.filename+'2.p', "wb" ) )
 
 
 # -------------------------------- #
+# ---- command line arguments ---- #
+# -------------------------------- #
+argv_l = sys.argv
+n_argv = len(argv_l)
+
+ncpu = 8
+tag = ''
+run = 'emcee'
+modelname = None
+
+filename = argv_l[1]    
+if n_argv >= 3:
+    run = argv_l[2]
+
+for il, label in enumerate(['run', 'ncpu', 'tag', 'model']):
+    label_ind = [argv_l.index(s) for s in argv_l if label in str(s)]
+    if len(label_ind) > 0:
+        newval = argv_l[int(label_ind[0])].split(label)[1].split('=')[1]
+        if il==0:
+            run = str(newval)
+        elif il==1:
+            ncpu = int(newval)
+        elif il==2:
+            tag = str(newval)
+        elif il==3:
+            modelname = str(newval)
+        
+out_name = 'res_'+run+'_'+filename+'_'+tag
+print('\nrunning alf:')
+print('input spectrum:', filename+'.dat')
+print('sampler =',run)
+print('ncpu =',ncpu)
+print('model_arr =',modelname)
+print('output:', out_name,'\n')
+
 alf(filename='ldss3_test1', tag='', run='dynesty',
     model_arr = '../pickle/alfvar_sspgrid_ldss3_test1.p',
-    ncpu = 8)
+    ncpu = 8)    
+
 
 
 

@@ -69,7 +69,7 @@ def lnprior(in_arr, nested=False):
 
 # -------------------------------------------------------- #
 def alf(filename, alfvar=None, tag='', run='dynesty',
-        model_arr = None, ncpu=4):
+        model_arr = None, ncpu=4, outname='test'):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -373,8 +373,8 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
         print('\n Total time for emcee {:.2f}min'.format(ndur/60))
         res = sampler.get_chain(discard = nburn) # discard: int, burn-in
         prob = sampler.get_log_prob(discard = nburn)
-        pickle.dump(res, open('../emcee_chain_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
-        pickle.dump(prob, open('../emcee_prob_'+str(len(use_keys))+'param_'+alfvar.filename+'.p', "wb" ) )
+        pickle.dump(res, open('../chain_'+outname+'.p', "wb" ) )
+        pickle.dump(prob, open('../prob_'+outname+'.p', "wb" ) )
 
         
     # ---------------------------------------------------------------- #
@@ -406,7 +406,7 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
             print('\n Total time for dynesty {:.2f}min'.format(ndur/60))
 
         results = dsampler.results
-        pickle.dump(results, open('../dynesty_'+str(len(use_keys))+'param_'+alfvar.filename+'2.p', "wb" ) )
+        pickle.dump(results, open('../'+outname+'.p', "wb" ) )
 
 
 # -------------------------------- #
@@ -447,7 +447,7 @@ print('output:', out_name,'\n')
 
 alf(filename='ldss3_test1', tag='', run='dynesty',
     model_arr = '../pickle/alfvar_sspgrid_ldss3_test1.p',
-    ncpu = 8)    
+    ncpu = 8, out_name=outname)    
 
 
 

@@ -75,7 +75,10 @@ def read_data(alfvar, sigma=None, velz=None):
     alfvar.data.wgt = np.copy(spec['col4'].data)
     alfvar.data.ires = np.copy(spec['col5'].data)
     alfvar.data.sky = np.zeros_like(alfvar.data.lam)
-
+    
+    # ---- remove masked par ---- #
+    alfvar.data.flx[alfvar.data.wgt==0] = np.nan
+    alfvar.data.err[alfvar.data.wgt==0] = np.nan
     
     if np.logical_and(sigma is not None, velz is not None):
         return alfvar, isig, ivelz

@@ -99,12 +99,12 @@ def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2',
 
     # ---- !we turn off the emission lines, since they are often highly
     # ---- !unconstrained if they are not included in the wavelength range
-    pos.logemline_h    = -6.0
-    pos.logemline_oii  = -6.0
-    pos.logemline_oiii = -6.0
-    pos.logemline_nii  = -6.0
-    pos.logemline_sii  = -6.0
-    pos.logemline_ni   = -6.0
+    #pos.logemline_h    = -6.0
+    #pos.logemline_oii  = -6.0
+    #pos.logemline_oiii = -6.0
+    #pos.logemline_nii  = -6.0
+    #pos.logemline_sii  = -6.0
+    #pos.logemline_ni   = -6.0
 
     # ------------------------------------------------------------!
     # ---- !here is the place to make changes to the best-fit model,

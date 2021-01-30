@@ -188,7 +188,6 @@ class ALFVAR(object):
         # -- these wavelengths come from NIST
         #  -- [hd, hy, hb, [OIII], [OIII], [NI], [NII], Ha, [NII], 
         #  -- [SII], [SII], [OII], [OII], Balmer, Balmer, Balmer, Balmer, Balmer, Balmer]
-        #self.emlines = np.zeros(self.neml)
         self.emlines = np.array([4102.89, 4341.69, 4862.71, 4960.30, 5008.24, 
                                  5203.05, 6549.86, 6564.61, 6585.27, 6718.29, 
                                  6732.67, 3727.10, 3729.86, 3751.22, 3771.70, 

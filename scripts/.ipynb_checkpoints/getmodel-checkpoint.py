@@ -1,5 +1,4 @@
-import math, pickle, numpy as np
-#from alf_vars import *
+import math, numpy as np
 from velbroad import *
 from linterp import *
 from add_response import add_response
@@ -11,16 +10,13 @@ __all__ = ['getmodel']
         
 
 # ---------------------------------------------------------------- #
-def getmodel(pos, alfvar = None, mw = 0):
+def getmodel(pos, alfvar, mw = 0):
     """
     routine to produce a model spectrum (spec) for an input
     set of parameters (pos).  The optional flag 'mw' is used
     to force the IMF to be of the MW (Kroupa 2001) form
     """
     
-    if alfvar is None:
-        alfvar = pickle.load(open('../pickle/alfvar_sspgrid_irldss3_imftype3_full.p', "rb" )) 
-    #sspgrid = copy.deepcopy(alfvar.sspgrid)
     sspgrid = alfvar.sspgrid
     
     msto_t0 = alfvar.msto_t0; msto_t1 = alfvar.msto_t1

@@ -50,7 +50,9 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     pr = 1.0
     
     if (nposarr>prhiarr).sum() + (nposarr<prloarr).sum() >0:
-        print('out of limits', nposarr)
+        print(np.where(nposarr>prhiarr))
+        print(np.where(nposarr<prloarr))
+        print('fun.py, out of limits', nposarr)
         pr =0.0
 
     # ---------------------------------------------------------------- #
@@ -108,7 +110,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                                  data.err/zmspec, tl1, tl2, 
                                  coeff = True, return_poly = True)
             mflx  = zmspec * poly
-            # ---- !compute chi^2
+            # ---- !compute chi^2 ---- #
             ind = np.isfinite(data.flx[i1:i2])
             flx_i12 = np.copy(data.flx[i1:i2][ind])
             err_i12 = np.copy(data.err[i1:i2][ind])
@@ -120,7 +122,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
             if alfvar.fit_type == 0:
                 # ---- !include jitter term
                 sky_term = np.square(np.power(10,npos.logsky)*sky_i12)
-                err_term = np.square(err_i12)*npos.jitter**2
+                err_term = np.square(err_i12*npos.jitter)
                 tocal_1 = np.square(flx_i12-mflx_i12)/(err_term + sky_term)
                 tocal_2 = np.log(2*mypi*(err_term + sky_term)) 
                 tchi2 = np.nansum(tocal_1 + tocal_2)
@@ -131,18 +133,10 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
            
             # ---- !error checking
             if (~np.isfinite(tchi2)):
-                print(" FUNC ERROR: chi2 returned a NaN") 
-                print(" error occured at wavelength interval: ",i)
-                print( 'lam  data   err   model   poly')
-                for j in range(i1,i2):
-                    print("{0} {1}{2} {3}{4}".format(data.lam[j],data.flx[j],
-                          np.sqrt(data.err[j]**2*npos.jitter**2+(10**npos.logsky*data.sky[j])**2),
-                          mflx[j],poly[j])
-                         )
-                print("\nparams:", tposarr)
-              
-            else:
-                func_val  += tchi2
+                return np.inf
+
+            
+            func_val  += tchi2
         
             if funit is True:
                 if (alfvar.fit_type == 0):
@@ -151,13 +145,9 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                     terr = data.err
                     
                 len_i12 = len(lam_i12)
-                combine_i12 = np.concatenate((lam_i12.reshape(1, len_i12), 
-                                              mflx_i12.reshape(1, len_i12),
-                                              flx_i12.reshape(1, len_i12), 
-                                              (flx_i12/terr).reshape(1, len_i12), 
-                                              poly_i12.reshape(1, len_i12), 
-                                              err_i12.reshape(1, len_i12),), 
-                                             axis=0)
+                combine_i12 = np.concatenate((lam_i12.reshape(1, len_i12), mflx_i12.reshape(1, len_i12),
+                                              flx_i12.reshape(1, len_i12), (flx_i12/terr).reshape(1, len_i12), 
+                                              poly_i12.reshape(1, len_i12), err_i12.reshape(1, len_i12),), axis=0)
                 
                 if i==0:
                     outspec_arr = np.copy(combine_i12)
@@ -165,10 +155,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                     outspec_arr = np.hstack((outspec_arr, combine_i12))
                     
                 # ---- write final results to screen and file
-                #print("%.2f um - %.2f um:  rms: %.2f percetn,Chi2/dof: %.2f" 
-                #      %(tl1/1e4/oneplusz, tl2/1e4/oneplusz,
-                #        np.sqrt(np.nansum( (flx_i12/mflx_i12-1)**2 )/(i2-i1+1) )*100,
-                #        tchi2/(i2-i1)))
+                print("%.2f um - %.2f um:  rms: %.2f percetn,Chi2/dof: %.2f" 
+                      %(tl1/1e4/oneplusz, tl2/1e4/oneplusz,np.sqrt(np.nansum( (flx_i12/mflx_i12-1)**2 )/(i2-i1+1) )*100, tchi2/(i2-i1)))
 
 
     if funit == False:

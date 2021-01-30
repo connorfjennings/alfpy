@@ -28,7 +28,7 @@ class alfobj(object):
     def __init__(self):
         self.__dict__ = dict(zip(key_list, default_arr))
     
-# ---------------- #    
+# ---------------------------------------------------------------- #    
 def str2arr(switch, instr=None, inarr=None, usekeys = key_list):
     """
     routine to dump the information in the parameteter 
@@ -57,7 +57,7 @@ def str2arr(switch, instr=None, inarr=None, usekeys = key_list):
 
 
 
-# ---------------- #
+# ---------------------------------------------------------------- # 
 def fill_param(inarr, usekeys = key_list):
     """
     only works for len(inarr) = len(usekeys)

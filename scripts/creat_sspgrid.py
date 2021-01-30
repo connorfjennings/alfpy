@@ -20,8 +20,8 @@ from str2arr import str2arr
 
 
 alfvar = ALFVAR()
-alfvar.filename = 'ldss3_dr247_n1600_Re4_wave6e'
+alfvar.filename = 'input
 alfvar = read_data(alfvar)
 alfvar.imf_type = 3
 alfvar = setup(alfvar, onlybasic = True, ncpu=16)
-pickle.dump(alfvar, open('../pickle/alfvar_sspgrid_ldss3_basic_imftype3.p', "wb" ) )
+pickle.dump(alfvar, open('../pickle/alfmodel.p', "wb" ) )

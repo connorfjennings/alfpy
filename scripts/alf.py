@@ -83,8 +83,7 @@ def func_2min(inarr):
     return func(global_alfvar, inarr, prhiarr=global_prhiarr,
                 prloarr=global_prloarr, usekeys = ['velz', 'sigma', 'logage', 'zh'])
 # -------------------------------------------------------- #
-def alf(filename, alfvar=None, tag='', run='dynesty',
-        model_arr = None, ncpu=4):
+def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -117,14 +116,13 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     # To Do: let the Fe-peak elements track Fe in simple mode
     """
 
-    if alfvar is None:
-        if model_arr is not None:
-            print('\nPickle loading alf model array: '+model_arr+'\n')
-            alfvar = pickle.load(open(model_arr, "rb" ))
-        else:
-            pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
-            print('No existing model array.  We will create one and pickle dump it to '+pickle_model_name)
-            alfvar = ALFVAR()
+    if model_arr is not None:
+        print('\nPickle loading alf model array: '+model_arr+'\n')
+        alfvar = pickle.load(open(model_arr, "rb" ))
+    else:
+        pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
+        print('No existing model array.  We will create one and pickle dump it to '+pickle_model_name)
+        alfvar = ALFVAR()
 
     nmcmc = 300    # -- number of chain steps to print to file
     # -- inverse sampling of the walkers for printing

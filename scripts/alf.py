@@ -199,7 +199,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
     prlo.teff   = -2.0
     
     # ---- mass of the young component should always be sub-dominant
-    prhi%logfy = -0.5
+    prhi.logfy = -0.5
 
 
     # ---------------------------------------------------------------!
@@ -434,7 +434,8 @@ print('\nrunning alf:')
 print('input spectrum:', filename+'.dat')
 print('sampler =',run)
 
-alf(filename, tag, run=run, model_arr = None, ncpu = 8)
+alf(filename, tag, run=run, 
+    model_arr = '../pickle/alfvar_sspgrid_ldss3_dr247_n1600_Re4_wave6e_1.p', ncpu = 8)
 
 
 

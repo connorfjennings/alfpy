@@ -115,12 +115,13 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
     #    this yourself by fitting mock data generated with write_a_model
     # To Do: let the Fe-peak elements track Fe in simple mode
     """
-
+    ALF_HOME = os.environ['ALFPY_HOME']
+    
     if model_arr is not None:
         print('\nPickle loading alf model array: '+model_arr+'\n')
         alfvar = pickle.load(open(model_arr, "rb" ))
     else:
-        pickle_model_name = 'pickle/alfvar_sspgrid_'+filename+'.p'
+        pickle_model_name = '{0}/pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
         print('No existing model array.  We will create one and pickle dump it to '+pickle_model_name)
         alfvar = ALFVAR()
 
@@ -281,8 +282,8 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
             print('\nsetting up model arry with given imf_type and input data\n')
             tstart = time.time()
             alfvar = setup(alfvar, onlybasic = False, ncpu=ncpu)
-            os.system('mkdir -p ../pickle')
-            pickle_model_name = '../pickle/alfvar_sspgrid_'+filename+'.p'
+            #os.system('mkdir -p ../pickle')
+            pickle_model_name = '{0}/pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
             pickle.dump(alfvar, open(pickle_model_name, "wb" ))
             ndur = time.time() - tstart
             print('\n Total time for setup {:.2f}min'.format(ndur/60))

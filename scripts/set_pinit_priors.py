@@ -98,7 +98,7 @@ def set_pinit_priors(alfvar, velz=None):
                   'teff': (-50., 50.), 'logfy':(-6., -0.1), 'fy_logage': (math.log10(0.5), math.log10(3.0)),
                   'logm7g': (-6., -1.0), 'hotteff':(8., 30.), 'loghot':(-8.0, -1.0),
                   'sigma':(10., 5e2), 'sigma2':(10., 5e2), 'chi2':(0, 2e33),
-                  'velz':(-1e3, 2e4), 'velz2':(-1e3, 2e4),
+                  'velz':(-1e3, 2e4), 'velz2':(-1e3, 1e3),
                   'logtrans':(-6., 1.0), 'logemline_h': (-6., 1.0), 'logemline_oii': (-6., 1.0),
                   'logemline_oiii': (-6., 1.0),'logemline_ni': (-6., 1.0), 'logemline_nii': (-6., 1.0),
                   'logemline_sii': (-6., 1.0),

@@ -27,14 +27,14 @@ from scipy.optimize import differential_evolution
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
+use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh',
             'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
             'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
             'teff','imf1','imf2','logfy','sigma2','velz2',
             'logm7g','hotteff','loghot','fy_logage',
             'logemline_h','logemline_oii','logemline_oiii',
             'logemline_sii','logemline_ni','logemline_nii',
-            'logtrans','jitter','logsky', 'imf3']
+            'jitter','imf3']
 
 # -------------------------------------------------------- #
 def log_prob(posarr):
@@ -363,9 +363,9 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
                                           polish=False, updating='deferred', workers=ncpu)
     print('optimized parameters', optimize_res)
     tem = optimize_res.x - np.array([100, 100, 0.25, 0.25])
-    global_prloarr[:4] = np.maximum(tem[:4], global_prloarr[:4])
+    global_prloarr[:4] = np.maximum(tem, global_prloarr[:4])
     tem = optimize_res.x + np.array([100, 100, 0.25, 0.25])
-    global_prhiarr[:4] = np.minimum(tem[:4], global_prhiarr[:4])
+    global_prhiarr[:4] = np.minimum(tem, global_prhiarr[:4])
 
     opos.velz = optimize_res.x[0]
     opos.sigma = optimize_res.x[1]
@@ -383,7 +383,6 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
     print('\nWe are going to fit ', npar, 'parameters\nThey are', use_keys)
     print('prior lower boundaries:', ['%.2f' %i for i in global_prloarr])
     print('prior upper boundaries:', ['%.2f' %i for i in global_prhiarr])
-    input('pause')
     # ---------------------------------------------------------------- #
     if run == 'emcee':
         print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
@@ -416,22 +415,20 @@ def alf(filename, alfvar=None, tag='', run='dynesty',
         # ---------------------------------------------------------------- #
         # based on prospector
         # ... need to learn how to optimize these parameters
-
         ndim = len(use_keys)
         with MultiPool(ncpu) as pool:
-        #with closing(Pool(processes = ncpu)) as pool:
-            dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, ndim, nlive = int(50*ndim),
-                                                    sample='rslice', wt_kwargs={'pfrac': 1.0}, bootstrap=0,
-                                                    walks=25, pool=pool, )
+            dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, 
+                                             ndim, nlive = int(50*ndim),
+                                             sample='rslice', bootstrap=0, pool=pool, )
             ncall = dsampler.ncall
             niter = dsampler.it - 1
             tstart = time.time()
             dsampler.run_nested(dlogz=0.5)
             ndur = time.time() - tstart
-            print('\n Total time for dynesty {:.2f}min'.format(ndur/60))
+            print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
 
         results = dsampler.results
-        pickle.dump(results, open('../dynesty_{0}_{1}.p'.format(filename, tag)', "wb" ) )
+        pickle.dump(results, open('../dynesty_{0}_{1}.p'.format(filename, tag), "wb" ))
 
 
 # -------------------------------- #
@@ -448,9 +445,7 @@ print('\nrunning alf:')
 print('input spectrum:', filename+'.dat')
 print('sampler =',run)
 
-alf(filename='ldss3_dr247_n1600_Re4_wave6e', tag='', run=run,
-    model_arr = '../pickle/alfvar_sspgrid_irldss3_imftype3_full.p',
-    ncpu = 16)
+alf(filename, tag, run=run, model_arr = None, ncpu = 16)
 
 
 

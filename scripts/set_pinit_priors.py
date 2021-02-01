@@ -138,33 +138,6 @@ def set_pinit_priors(alfvar, velz=None):
     prlo.imf4 = -5.0
     prhi.imf4 = 3.0
 
-    #--------------------------------------------------------------------------!
-    #-------reset the initial parameters if the priors have been altered-------!
-    #--------------------------------------------------------------------------!
-
-    # ---- str->arr
-    #prloarr = str2arr(switch = 1, instr = prlo)
-    #prhiarr = str2arr(switch = 1, instr = prhi)
-    #posarr = str2arr(switch = 1, instr = pos)
-
-    # ---- test the priors and if the priors have been altered then
-    # ---- re-initialize the parameters within the prior range
-    # ---- NB: why not simply always initialize the starting position this way?
-
-    #for i in range(npar):
-    #    if prhiarr1[i] <= prloarr1[i]:
-    #        print('SET_PINIT_PRIORS ERROR: prhi <= prlo!', i)
-    #    # ---- reset the initial parameters randomly within the prior range
-    #    # ---- if both the initial priors have changed *and* the position is outside
-    #    # ---- of the new priors
-    #    if np.logical_or(tprhiarr1[i] != testarr1[i], tprloarr1[i] != testarr1[i]):
-    #        if posarr1[i] >= prhiarr1[i] or posarr1[i] <= prloarr1[9]:
-    #            posarr1[i] = random.random()*(prhiarr1[i] - prloarr1[i]) + prloarr1[i]
-
-    #if velz is not None:
-    #    posarr1[0] = velz + 50*(random.random()*2.-1)
-    # ---- arr -> str
-    #pos = str2arr(switch=2, inarr=posarr1)
     return pos, prlo, prhi
 
 

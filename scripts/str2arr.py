@@ -1,7 +1,7 @@
 #from alf_vars import *
 import math, numpy as np
 
-__all__ = ['str2arr', 'fill_param']
+__all__ = ['str2arr', 'fill_param', 'default_arr']
 
 
 key_list = ['velz', 'sigma', 'logage', 'zh', 'feh', 

@@ -115,7 +115,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
     #    this yourself by fitting mock data generated with write_a_model
     # To Do: let the Fe-peak elements track Fe in simple mode
     """
-    ALF_HOME = os.environ['ALFPY_HOME']
+    ALFPY_HOME = os.environ['ALFPY_HOME']
     
     if model_arr is not None:
         print('\nPickle loading alf model array: '+model_arr+'\n')

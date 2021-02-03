@@ -170,17 +170,14 @@ def getmodel(pos, alfvar, mw = 0):
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt+1]) * 
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm+1]+
-                            msto_z2*sspgrid.logzgrid[vm+1]**2),
-                           3.0),0.75)
-            mass, inorm = getmass(alfvar.imflo, msto, 
-                                  pos.imf1, pos.imf2, 
+                            msto_z2*sspgrid.logzgrid[vm+1]**2),3.0),0.75)
+            mass, inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
                                   krpa_imf3,pos.imf3,pos.imf4)
             tmp1 = tmp1/inorm
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt]) *
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm+1]+
-                            msto_z2*sspgrid.logzgrid[vm+1]**2),
-                           3.0),0.75)
+                            msto_z2*sspgrid.logzgrid[vm+1]**2),3.0),0.75)
             mass,inorm = getmass(alfvar.imflo, msto, 
                                  pos.imf1, pos.imf2, 
                                  krpa_imf3, pos.imf3, pos.imf4)
@@ -188,16 +185,14 @@ def getmodel(pos, alfvar, mw = 0):
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt+1]) * 
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm]+ 
-                            msto_z2*sspgrid.logzgrid[vm]**2),
-                           3.0),0.75)
+                            msto_z2*sspgrid.logzgrid[vm]**2),3.0),0.75)
             mass,inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
                                  krpa_imf3, pos.imf3, pos.imf4)
             tmp3 = tmp3/inorm
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt]) * 
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm]+ 
-                            msto_z2*sspgrid.logzgrid[vm]**2),
-                           3.0),0.75)
+                            msto_z2*sspgrid.logzgrid[vm]**2),3.0),0.75)
             mass,inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
                                  krpa_imf3, pos.imf3, pos.imf4)
             tmp4 = tmp4/inorm
@@ -231,9 +226,8 @@ def getmodel(pos, alfvar, mw = 0):
 
     # ---- vary age in the response functions
     if alfvar.use_age_dep_resp_fcns == 0:
-        #force the use of the response fcn at age=fix_age_dep_resp_fcns
-        vr = max(min(locate(sspgrid.logagegrid_rfcn, 
-                            np.log10(alfvar.fix_age_dep_resp_fcns)), alfvar.nage_rfcn-2),0)
+        # ---- force the use of the response fcn at age=fix_age_dep_resp_fcns
+        vr = max(min(locate(sspgrid.logagegrid_rfcn, np.log10(alfvar.fix_age_dep_resp_fcns)), alfvar.nage_rfcn-2),0)
         dr = (np.log10(alfvar.fix_age_dep_resp_fcns)-sspgrid.logagegrid_rfcn[vr])/(sspgrid.logagegrid_rfcn[vr+1]-sspgrid.logagegrid_rfcn[vr])
         dr = max(min(dr, 1.0), 0.0)
 
@@ -366,7 +360,7 @@ def getmodel(pos, alfvar, mw = 0):
         
         #add emission lines
         if alfvar.maskem==0:
-            #these line ratios come from Nell Byler's Cloudy lookup table
+            # ---- these line ratios come from Nell Byler's Cloudy lookup table
             emnormall[1-1] = 10**pos.logemline_h / 11.21   # Hy
             emnormall[2-1]  = 10**pos.logemline_h / 6.16    # Hd
             emnormall[3-1]  = 10**pos.logemline_h / 2.87    # Hb
@@ -401,10 +395,10 @@ def getmodel(pos, alfvar, mw = 0):
             hermite[0] = pos.h3
             hermite[1] = pos.h4
             spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
-                            hermite, velbroad_simple=1, alfvar=alfvar)
+                            hermite, velbroad_simple=1)
         else:
-            spec = velbroad(sspgrid.lam, spec, pos.sigma, np.nanmin(alfvar.l1), np.nanmax(alfvar.l2), 
-                            velbroad_simple = 0, alfvar=alfvar)
+            spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
+                            velbroad_simple = 0)
 
 
     # ---- apply an atmospheric transmission function only in full mode

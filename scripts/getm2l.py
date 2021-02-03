@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np, pandas as pd
 from alf_vars import *
 from linterp import *
 from getmass import getmass
@@ -23,7 +23,8 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None):
     krpa_imf1, krpa_imf2, krpa_imf3 = alfvar.krpa_imf1, alfvar.krpa_imf2, alfvar.krpa_imf3
     imflo, imfhi = alfvar.imflo, alfvar.imfhi
     
-    f15 = np.loadtxt('{0}infiles/filters.dat'.format(ALF_HOME))
+    #f15 = np.loadtxt('{0}infiles/filters.dat'.format(ALF_HOME))
+    f15 = np.array(pd.read_csv('{0}infiles/filters.dat'.format(ALF_HOME), delim_whitespace=True, header=None, comment='#'))
     filters = np.zeros((alfvar.nl, alfvar.nfil))
     filters[:,0] = np.copy(f15[alfvar.nstart-1:alfvar.nend, 1])
     filters[:,1] = np.copy(f15[alfvar.nstart-1:alfvar.nend, 2])
@@ -31,7 +32,6 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None):
         
     m2l = np.zeros(nfil)
     mag = np.zeros(nfil)
-    #aspec = np.empty(nl)
 
     #!---------------------------------------------------------------!
     #!---------------------------------------------------------------!

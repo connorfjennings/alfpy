@@ -43,7 +43,7 @@ def velbroad_notfast(wave, spec, sigma, minl=None, maxl=None):
 
 #-------------------------------------------------------------------------!
 def velbroad(lam, spec, sigma, minl=None, maxl=None, 
-             ires=None, velbroad_simple = 1, alfvar=None):
+             ires=None, velbroad_simple = 1):
     """
     !routine to compute velocity broadening of an input spectrum
     !the PSF kernel has a width of m*sigma, where m=4
@@ -56,23 +56,20 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
       array as well, and in this mode the broadening is also in the "simple" mode
     - INPUTS:
         lambda, spec, sigma, minl, maxl, (ires)
+    - only smooth between minl and maxl
     - OUTPUTS:
         spec
     """
-    lam = np.copy(lam)
-    spec = np.copy(spec)
-    
     if minl ==None:
         minl = np.nanmin(lam)
     if maxl ==None:
         maxl = np.nanmax(lam)    
-    nn = lam.size
-
+    
+    lam = np.copy(lam)
+    spec = np.copy(spec)
     m = 6
-    h3 = 0.0
-    h4 = 0.0
 
-    #no broadening for small sigma
+    # ---- no broadening for small sigma
     if sigma <= 10.:
         return spec
     elif sigma >= 1e4:
@@ -83,89 +80,89 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
     # ---- !compute smoothing the slightly less accurate way
     # ---- !but the **only way** in the case of wave-dep smoothing
     if (velbroad_simple==1) or (ires is not None):
+        nn = lam.size
+        h3, h4 = 0, 0   
         tspec = np.copy(spec)
+        sigmal = sigma
         sigmal_arr_exist = False
-        #spec[np.logical_and(lam>=minl, lam<=maxl)] = 0.0 #??? check
         if (ires is not None):
             if ires.size > 2:
                 sigmal_arr = ires
-                h3 = 0.
-                h4 = 0.
                 sigmal_arr_exist = True
-
             elif ires.size == 2:
-                sigmal = sigma
-                h3 = ires[0]
-                h4 = ires[1]
-            else:
-                sigmal = sigma
-        else:
-            sigmal = sigma
-            
-        if sigmal_arr_exist:
+                h3, h4 = ires
+                
+
+        if sigmal_arr_exist == True:
             xmax = lam * (m*sigmal_arr/clight*1e5+1)
+            ih_arr = np.clip(np.array([np.argmin(np.abs(lam - i)) for i in xmax]), None, nn)
+            il_arr = np.clip(2*np.arange(nn) - ih_arr, 0, None)
+            useindex = np.arange(nn)[(lam>=minl)&(lam<=maxl)&(ih_arr != il_arr)]
+
+            for i in useindex:
+                ih, il, sigmal = ih_arr[i], il_arr[i], sigmal_arr[i]
+                vel = (lam[i]/lam[il:ih]-1)*clight/1e5
+                temr = vel/sigmal
+                if h3 == h4 == 0:
+                    func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2)                
+                else:
+                    func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2) * \
+                           (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + \
+                           h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) )
+                
+                func /= tsum(vel, func)
+                spec[i] = tsum(vel, func*tspec[il:ih])  
+                
         else:
             xmax = lam * (m*sigmal/clight*1e5+1)
-            
-        ih_arr = np.array([np.argmin(abs(lam - i)) for i in xmax])
-        ih_arr[ih_arr>nn] = nn
-        il_arr = 2*np.arange(nn) - ih_arr
-        il_arr[il_arr<0] = 0
-        useindex = np.arange(nn)[(lam>=minl)&(lam<=maxl)&(ih_arr != il_arr)]
-  
-        for i in useindex:
-            if sigmal_arr_exist == True:
-                sigmal = sigmal_arr[i]
-            
-            ih, il = ih_arr[i], il_arr[i]
-            vel = (lam[i]/lam[il:ih]-1)*clight/1e5
-            temr = vel/sigmal
-            if h3==0 and h4==0:
-                func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2)                
-            else:
-                func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2) * \
-                    (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + 
-                     h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) )
+            ih_arr = np.clip(np.array([np.argmin(np.abs(lam - i)) for i in xmax]), None, nn)
+            il_arr = np.clip(2*np.arange(nn) - ih_arr, 0, None)
+            useindex = np.arange(nn)[(lam>=minl)&(lam<=maxl)&(ih_arr != il_arr)]
+        
+            for i in useindex:
+                ih, il = ih_arr[i], il_arr[i]
+                vel = (lam[i]/lam[il:ih]-1)*clight/1e5
+                temr = vel/sigmal
+                if h3 == h4 == 0:
+                    func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2) 
+                else:
+                    func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2) * \
+                           (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + \
+                           h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) )
                 
-            func /= tsum(vel, func)
-            spec[i] = tsum(vel, func*tspec[il:ih]) 
+                func /= tsum(vel, func)
+                spec[i] = tsum(vel, func*tspec[il:ih])                  
+
     
     
     # ---- !compute smoothing the correct way (convolution in dloglambda)
     else:
-        # ---- !fancy footwork to allow for input spectra of either length
-        if nn == alfvar.nl:
-            n2 = alfvar.nl_fit
-        else:
-            n2 = alfvar.nl
-        
-        dlstep = alfvar.dlstep
-        lnlam = alfvar.lnlam
-        if alfvar.dlstep ==0:
-            dlstep = (math.log(alfvar.sspgrid.lam[-1])-math.log(alfvar.sspgrid.lam[0]))/alfvar.sspgrid.lam.size
-            lnlam = np.arange(alfvar.nl_fit)*dlstep+math.log(alfvar.sspgrid.lam[0])
+        # ---- !fancy footwork to allow for input spectra of either length       
+        ind1, ind2 = np.argmin(np.abs(lam-minl)), np.argmin(np.abs(lam-maxl))
+        n2 = ind2-ind1
+        dlstep = (math.log(lam[ind2])-math.log(lam[ind1]))/n2
+        lnlam = np.arange(n2)*dlstep+math.log(lam[ind1])
             
-        fwhm = sigma*2.35482/clight*1e5/dlstep
-        psig = fwhm/2./math.sqrt(-2.0*math.log(0.5)) #! equivalent sigma for kernel
-
+        #fwhm = sigma*2.35482/clight*1e5/dlstep
+        psig = sigma*2.35482/clight*1e5/dlstep/2./math.sqrt(-2.0*math.log(0.5)) #! equivalent sigma for kernel
         grange = math.floor(m*psig) #! range for kernel (-range:range)
         if grange >1:
-            tspec = linterp(np.log(lam[0:n2]), spec[0:n2], lnlam[0:n2])
+            tspec = linterp(np.log(lam[ind1:ind2]), spec[ind1:ind2], lnlam)
             nspec = np.copy(tspec)
             
-            tem_ = 1.0/math.sqrt(2*mypi)/psig
-            psf = np.array([tem_*math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
-            psf= psf/np.nansum(psf)
+            psf = np.array([1.0/math.sqrt(2*mypi)/psig*math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
+            psf= psf/np.sum(psf)
             
             for i in range(grange, n2-grange):
-                nspec[i] = np.nansum(psf*tspec[i-grange:i+grange+1])
+                nspec[i] = np.sum(psf*tspec[i-grange:i+grange+1])
 
             # ---- !interpolate back to the main array
-            spec[:n2] = linterp(np.exp(lnlam[:n2]),nspec[:n2],lam[:n2])    
+            spec[ind1:ind2] = linterp(np.exp(lnlam),nspec,lam[ind1:ind2])    
     
     return spec
         
             
+        
 # -------------------------------------------------------------------------!
 def velbroad2(lam, spec, sigma, minl=None, maxl=None, 
              ires=None, velbroad_simple = 1, alfvar=None):

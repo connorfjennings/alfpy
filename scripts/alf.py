@@ -4,7 +4,6 @@ from multiprocessing import Pool
 import dynesty
 from dynesty import NestedSampler, DynamicNestedSampler
 #from contextlib import closing
-
 #import mpi4py
 #from mpi4py import MPI
 #from schwimmbad import MPIPool
@@ -22,19 +21,13 @@ from setup import *
 from set_pinit_priors import *
 
 from scipy.optimize import differential_evolution
+from post_process import calm2l_dynesty
 
 
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
-            'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
-            'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
-            'imf1','imf2','logfy','sigma2','velz2',
-            'hotteff','loghot','fy_logage',
-            'logemline_h','logemline_oii','logemline_oiii',
-            'logemline_sii','logemline_ni','logemline_nii',
-            'jitter','imf3']
+use_keys = ['velz', 'sigma', 'logage', 'zh']
 
 # -------------------------------------------------------- #
 def log_prob(posarr):
@@ -85,7 +78,7 @@ def func_2min(inarr):
 
 
 # -------------------------------------------------------- #
-def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
+def alf(filename, tag='', run='dynesty', model_arr = None):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -289,7 +282,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
         if model_arr is None:
             print('\nsetting up model arry with given imf_type and input data\n')
             tstart = time.time()
-            alfvar = setup(alfvar, onlybasic = False, ncpu=ncpu)
+            alfvar = setup(alfvar, onlybasic = False)
             #os.system('mkdir -p ../pickle')
             pickle_model_name = '{0}/pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
             pickle.dump(alfvar, open(pickle_model_name, "wb" ))
@@ -310,7 +303,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
 
         # ---- we only compute things up to 500A beyond the input fit region
         alfvar.nl_fit = min(max(locate(lam, alfvar.l2[-1]+500.0),0),alfvar.nl-1)
-        ##define the log wavelength grid used in velbroad.f90
+        ## ---- define the log wavelength grid used in velbroad.f90
         alfvar.dlstep = (np.log(alfvar.sspgrid.lam[alfvar.nl_fit])-
                          np.log(alfvar.sspgrid.lam[0]))/alfvar.nl_fit
 
@@ -355,7 +348,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
     prior_bounds = list(zip(global_prloarr[:4], global_prhiarr[:4]))
     print('prior_bounds:', prior_bounds)
     optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
-                                          polish=False, updating='deferred', workers=ncpu)
+                                              polish=False, updating='deferred', workers=-1)
     print('optimized parameters', optimize_res)
 
     opos.velz = optimize_res.x[0]
@@ -367,7 +360,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
     
     # -------- getting priors for the sampler -------- #
     global global_all_prior # ---- note it's for all parameters
-    global_all_prior = [ClippedNormal(np.array(optimize_res.x)[i], np.array([200, 200, 0.3, 0.3])[i], 
+    global_all_prior = [ClippedNormal(np.array(optimize_res.x)[i], np.array([100, 100, 0.2, 0.2])[i], 
                                       global_prloarr[i], global_prhiarr[i]) for i in range(4)] + \
                        [TopHat(global_prloarr[i+4], global_prhiarr[i+4]) for i in range(len(key_list)-4)]
 
@@ -389,7 +382,8 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
 
         print('initial values of the first walker:\n', pos_emcee_in[0], '\n')
 
-        with MultiPool(ncpu) as pool:
+        with MultiPool() as pool:
+            print('alf.py, emcee, using {} processes'.format(pool.size))
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
             state = sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True)
 
@@ -397,15 +391,16 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
         print('\n Total time for emcee {:.2f}min'.format(ndur/60))
         res = sampler.get_chain(discard = nburn) # discard: int, burn-in
         prob = sampler.get_log_prob(discard = nburn)
-        pickle.dump(res, open('../emcee_chain_{0}_{1}.p'.format(filename, tag), "wb" ) )
-        pickle.dump(prob, open('../emcee_prob_{0}_{1}.p'.format(filename, tag), "wb" ) )
+        pickle.dump(res, open('{0}res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+        pickle.dump(prob, open('{0}prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
 
 
     # ---------------------------------------------------------------- #
     elif run == 'dynesty':
         # ---------------------------------------------------------------- #
         ndim = len(use_keys)
-        with MultiPool(ncpu) as pool:
+        with MultiPool() as pool:
+            print('alf.py, dynesty, using {} processes'.format(pool.size))
             dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, 
                                              ndim, nlive = int(50*ndim),
                                              sample='rslice', bootstrap=0, pool=pool, )
@@ -417,7 +412,10 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=4):
             print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
 
         results = dsampler.results
-        pickle.dump(results, open('../dynesty_{0}_{1}.p'.format(filename, tag), "wb" ))
+        pickle.dump(results, open('{0}res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
+        
+        # ---- post process ---- #
+        calm2l_dynesty(results, alfvar, use_keys=use_keys, outname=filename+'_'+tag)
 
 
 # -------------------------------- #
@@ -434,8 +432,7 @@ print('\nrunning alf:')
 print('input spectrum:', filename+'.dat')
 print('sampler =',run)
 
-alf(filename, tag, run=run, 
-    model_arr = '../pickle/alfvar_sspgrid_ldss3_dr247_n1600_Re4_wave6e_1.p', ncpu = 8)
+alf(filename, tag, run=run, model_arr = None)
 
 
 

@@ -6,18 +6,21 @@ from alf_vars import *
 from alf_constants import *
 from vacairconv import *
 from velbroad import *
-import multiprocessing
-from functools import partial
-#from multiprocessing import Pool
-from schwimmbad import MultiPool
 import time
+from functools import partial
+
+import multiprocessing
+#import mpi4py
+#from mpi4py import MPI
+#from schwimmbad import MPIPool
+#from schwimmbad import MultiPool
+
 
 """
 read in and set up all the arrays
 """
 
 __all__ = ['setup']
-
 
 # ---------------------------------------------------------------- #
 # -------- parallelize all velbroad part -------- #
@@ -30,7 +33,7 @@ def worker(inlam, sigma0, lam_lo, lam_hi, smooth_arr, inarr):
 
 
 # ---------------------------------------------------------------- #
-def setup(alfvar, onlybasic = False, ncpu=4):
+def setup(alfvar, onlybasic = False, ncpu=1):
     """
     !read in and set up all the arrays
     """
@@ -419,11 +422,10 @@ def setup(alfvar, onlybasic = False, ncpu=4):
                    'nip','cop','eup','srp','kp','vp','cup','nap6','nap9']
               
         tstart = time.time()
-        #pool = multiprocessing.Pool(ncpu)
-        with MultiPool() as pool:
-            print('setup.py, using {} processes'.format(pool.size))
+
+        pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth)
+        with multiprocessing.Pool(ncpu) as pool:
             # ---- define partial worker for all velbroad---- #
-            pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth)
             for iattr in temlist:
                 print('\n smooth response func ', iattr, end=':')
                 index_list = [(j,k) for (j, k), _ in np.ndenumerate(getattr(alfvar.sspgrid, iattr)[0])]
@@ -472,8 +474,6 @@ def setup(alfvar, onlybasic = False, ncpu=4):
                     
     ndur = time.time() - tstart
     print('\nparallelized velbroad {:.2f}min'.format(ndur/60.))
-
-
     alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)
     alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + tiny_number)
 

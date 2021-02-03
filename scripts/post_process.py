@@ -1,8 +1,5 @@
 import os, math, numpy as np, pandas as pd
-import multiprocessing
 from functools import partial
-from multiprocessing import Pool
-from schwimmbad import MultiPool
 from dynesty import utils as dyfunc
 from getm2l import *
 from getmodel import *
@@ -10,6 +7,10 @@ from str2arr import *
 import time
 from str2arr import key_list
 import h5py
+
+import multiprocessing
+#from multiprocessing import Pool
+#from schwimmbad import MultiPool
 
 
 __all__ = ['calm2l_dynesty']
@@ -35,7 +36,7 @@ def worker_m2l(alfvar, use_keys, inarr):
 
 
 # ---------------------------------------------------------------- #
-def calm2l_dynesty(in_res, alfvar, use_keys, outname):
+def calm2l_dynesty(in_res, alfvar, use_keys, outname,ncpu=1):
     ALFPY_HOME = os.environ['ALFPY_HOME']
     
     f1 = h5py.File("{0}results/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
@@ -52,11 +53,10 @@ def calm2l_dynesty(in_res, alfvar, use_keys, outname):
     dset = f1.create_dataset('use_keys', data=use_keys)
  
     tstart = time.time()
-    with MultiPool() as pool:
-        pwork = partial(worker_m2l, alfvar, use_keys)
-        print('post_process.py, dynesty, using {} processes'.format(pool.size))
-        m2l_res = pool.map(pwork, [samples[i] for i in range(100)])
-        
+    nspec = samples.shape[0]
+    pwork = partial(worker_m2l, alfvar, use_keys)
+    with multiprocessing.Pool(ncpu) as pool:
+        m2l_res = pool.map(pwork, [samples[i] for i in range(nspec)])
     ndur = time.time() - tstart
     print('\npost processing dynesty results: {:.2f}minutes'.format(ndur/60.))
     

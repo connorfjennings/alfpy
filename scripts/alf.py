@@ -359,7 +359,9 @@ def alf(filename, tag='', run='dynesty', model_arr = None):
     oposarr = str2arr(switch=1, instr=opos)
     
     # -------- getting priors for the sampler -------- #
-    global global_all_prior # ---- note it's for all parameters
+    global global_all_prior  # ---- note it's for all parameters
+    
+    # ---------------- update priors ----------------- #
     global_all_prior = [ClippedNormal(np.array(optimize_res.x)[i], np.array([100, 100, 0.2, 0.2])[i], 
                                       global_prloarr[i], global_prhiarr[i]) for i in range(4)] + \
                        [TopHat(global_prloarr[i+4], global_prhiarr[i+4]) for i in range(len(key_list)-4)]
@@ -412,8 +414,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None):
             print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
 
         results = dsampler.results
-        pickle.dump(results, open('{0}res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
-        
+        #pickle.dump(results, open('{0}res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
         # ---- post process ---- #
         calm2l_dynesty(results, alfvar, use_keys=use_keys, outname=filename+'_'+tag)
 

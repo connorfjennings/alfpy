@@ -9,6 +9,7 @@ from getmodel import *
 from str2arr import *
 import time
 from str2arr import key_list
+import h5py
 
 
 __all__ = ['calm2l_dynesty']
@@ -37,20 +38,30 @@ def worker_m2l(alfvar, use_keys, inarr):
 def calm2l_dynesty(in_res, alfvar, use_keys, outname):
     ALFPY_HOME = os.environ['ALFPY_HOME']
     
+    f1 = h5py.File("{0}results/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
+    for ikey in ['samples', 'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information']:
+        dset = f1.create_dataset(ikey, dtype=np.float16, data=getattr(in_res, ikey))
+        
     samples, weights = in_res.samples, np.exp(in_res.logwt - in_res.logz[-1])
     mean, cov = dyfunc.mean_and_cov(samples, weights)
     samples = dyfunc.resample_equal(in_res.samples, weights)
+
+    dset = f1.create_dataset('samples_eq', dtype=np.float16, data=samples)
+    dset = f1.create_dataset('mean', dtype=np.float16, data=mean)
+    dset = f1.create_dataset('cov', dtype=np.float16, data=cov)
+    dset = f1.create_dataset('use_keys', data=use_keys)
+ 
     tstart = time.time()
-    
     with MultiPool() as pool:
         pwork = partial(worker_m2l, alfvar, use_keys)
         print('post_process.py, dynesty, using {} processes'.format(pool.size))
-        ml_res = pool.map(pwork, [samples[i] for i in range(100)])
+        m2l_res = pool.map(pwork, [samples[i] for i in range(100)])
         
     ndur = time.time() - tstart
     print('\npost processing dynesty results: {:.2f}minutes'.format(ndur/60.))
-    np.savez('{0}results/{1}_dynestym2l.npz'.format(ALFPY_HOME, outname), m2l=ml_res)
-    return np.array(ml_res)
+    
+    dset = f1.create_dataset('m2l', dtype=np.float16, data=m2l_res)
+    f1.close()
     
     
 # ---------------------------------------------------------------- #

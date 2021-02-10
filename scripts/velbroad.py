@@ -1,7 +1,6 @@
-from linterp import * 
-import math, scipy, numpy as np
-#copy, 
-from alf_vars import *
+#from linterp import * 
+#from alf_vars import *
+import math, numpy as np
 from alf_constants import *
 
 __all__ = ['velbroad']
@@ -110,8 +109,8 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
                            (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + \
                            h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) )
                 
-                func /= tsum(vel, func)
-                spec[i] = tsum(vel, func*tspec[il:ih])  
+                func /= np.trapz(y=func, x=vel) #tsum(vel, func)
+                spec[i] = np.trapz(y=func*tspec[il:ih], x=vel) #tsum(vel, func*tspec[il:ih])  
                 
         else:
             xmax = lam * (m*sigmal/clight*1e5+1)
@@ -130,8 +129,8 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
                            (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + \
                            h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) )
                 
-                func /= tsum(vel, func)
-                spec[i] = tsum(vel, func*tspec[il:ih])                  
+                func /= np.trapz(y=func, x=vel) #tsum(vel, func)
+                spec[i] = np.trapz(y=func*tspec[il:ih], x=vel) #tsum(vel, func*tspec[il:ih])                  
 
     
     
@@ -147,83 +146,22 @@ def velbroad(lam, spec, sigma, minl=None, maxl=None,
         psig = sigma*2.35482/clight*1e5/dlstep/2./math.sqrt(-2.0*math.log(0.5)) #! equivalent sigma for kernel
         grange = math.floor(m*psig) #! range for kernel (-range:range)
         if grange >1:
-            tspec = linterp(np.log(lam[ind1:ind2]), spec[ind1:ind2], lnlam)
+            tspec = np.interp(x=lnlam, xp=np.log(lam[ind1:ind2]), fp= spec[ind1:ind2])
+            #linterp(np.log(lam[ind1:ind2]), spec[ind1:ind2], lnlam)
             nspec = np.copy(tspec)
             
-            psf = np.array([1.0/math.sqrt(2*mypi)/psig*math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
+            psf = 1.0/math.sqrt(2*mypi)/psig*np.array([math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
             psf= psf/np.sum(psf)
             
-            for i in range(grange, n2-grange):
-                nspec[i] = np.sum(psf*tspec[i-grange:i+grange+1])
+            nspec[grange: n2-grange] = np.array([(psf*tspec[i-grange:i+grange+1]).sum() for i in range(grange, n2-grange)])
+            #for i in range(grange, n2-grange):
+            #    nspec[i] = (psf*tspec[i-grange:i+grange+1]).sum() # much faster than np.sum
 
             # ---- !interpolate back to the main array
-            spec[ind1:ind2] = linterp(np.exp(lnlam),nspec,lam[ind1:ind2])    
+            spec[ind1:ind2] = np.interp(x=lam[ind1:ind2], xp=np.exp(lnlam), fp=nspec)
+            #linterp(np.exp(lnlam),nspec,lam[ind1:ind2])    
     
     return spec
         
             
         
-# -------------------------------------------------------------------------!
-def velbroad2(lam, spec, sigma, minl=None, maxl=None, 
-             ires=None, velbroad_simple = 1, alfvar=None):
-    """
-    !routine to compute velocity broadening of an input spectrum
-    !the PSF kernel has a width of m*sigma, where m=4
-    - slower than velbroad-simple  512ms vs 465ms
-    """
-    lam = np.copy(lam)
-    spec = np.copy(spec)
-    
-    if minl ==None:
-        minl = np.nanmin(lam)
-    if maxl ==None:
-        maxl = np.nanmax(lam)    
-    nn = lam.size
-
-    m = 6
-    h3 = 0.0
-    h4 = 0.0
-
-    #no broadening for small sigma
-    if sigma <= 10.:
-        return spec
-    elif sigma >= 1e4:
-        print("VELBROAD ERROR: sigma>1E4 km/s - you've "\
-              "probably done something wrong...")
-        return spec
-
-    # ---- !compute smoothing the slightly less accurate way
-    # ---- !but the **only way** in the case of wave-dep smoothing
-    if (velbroad_simple==1) or (ires is not None):
-        tspec = np.copy(spec)
-        sigmal_arr_exist = False
-        
-        for i in range(nn):
-            if lam[i]<minl or lam[i]>maxl:
-                spec[i] = tspec[i]
-            if ires is not None:
-                if ires.size>2:
-                    sigmal = ires[i]
-                    h3 = 0.
-                    h4 = 0.
-                else:
-                    sigmal = sigma
-                    h3 = ires[0]
-                    h4 = ires[1]
-            else:
-                sigmal = sigma
-                
-            xmax = lam[i] * (m*sigmal/clight*1e5+1.)
-            ih = min(locate(lam[:nn], xmax), nn-1)
-            il = max(2*i-ih, 0)
-        
-            if il==ih:
-                spec[i] = tspec[i]
-            else:
-                vel = (lam[i]/lam[il:ih]-1)*clight/1e5
-                temr = vel/sigmal
-                func = (1./math.sqrt(2.*mypi)/sigmal * np.exp(-np.square(temr)/2) * (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + h4*(4*np.power(temr,4)-12*np.square(temr)+3)/math.sqrt(24.) ))
-                func /= tsum(vel, func)
-                spec[i] = tsum(vel,func*tspec[il:ih])
-                
-    return spec

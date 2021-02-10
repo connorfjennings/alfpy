@@ -28,7 +28,7 @@ from post_process import calm2l_dynesty
 # -------------------------------------------------------- #
 global key_list
 global use_keys
-use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh', 
+use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh',
             'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
             'vh','crh','mnh','coh','nih','cuh','srh','bah','euh',
             'imf1','imf2','logfy','sigma2','velz2',
@@ -407,41 +407,43 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
         # ---------------------------------------------------------------- #
         ndim = len(use_keys)
         with multiprocessing.Pool(ncpu) as pool:
-            dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform,
-                                             ndim, nlive = int(50*ndim),
-                                             sample='rslice', bootstrap=0, 
-                                             pool=pool, queue_size = ncpu)
+            dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, ndim, nlive = int(50*ndim),
+                                             sample='rslice', bootstrap=0,pool=pool, queue_size = ncpu)
             ncall = dsampler.ncall
             niter = dsampler.it - 1
             tstart = time.time()
             dsampler.run_nested(dlogz=0.5)
             ndur = time.time() - tstart
             print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
-            
         pool.close()
         results = dsampler.results
         pickle.dump(results, open('{0}/results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
+        
+        results = pickle.load(open('{0}/results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
         # ---- post process ---- #
         calm2l_dynesty(results, alfvar, use_keys=use_keys, outname=filename+'_'+tag, ncpu=ncpu)
 
 
 # -------------------------------- #
 # ---- command line arguments ---- #
-# -------------------------------- #    
-ncpu = multiprocessing.cpu_count() 
-print('Number of available cpu:', ncpu)
-argv_l = sys.argv
-n_argv = len(argv_l)
-filename = argv_l[1]
-tag = ''
-if n_argv >= 3:
-    tag = argv_l[2]
-run = 'dynesty'
-print('\nrunning alf:')
-print('input spectrum:', filename+'.dat')
-print('sampler =',run)
+# -------------------------------- #
 
-alf(filename, tag, run=run, model_arr = None, ncpu=ncpu)
+
+if __name__ == "__main__":
+    ncpu = multiprocessing.cpu_count()
+    print('Number of available cpu:', ncpu)
+    argv_l = sys.argv
+    n_argv = len(argv_l)
+    filename = argv_l[1]
+    tag = ''
+    if n_argv >= 3:
+        tag = argv_l[2]
+    run = 'dynesty'
+    print('\nrunning alf:')
+    print('input spectrum:', filename+'.dat')
+    print('sampler =',run)
+
+    alf(filename, tag, run=run, model_arr = None, ncpu=ncpu)
 
 
 

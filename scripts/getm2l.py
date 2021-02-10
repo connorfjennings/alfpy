@@ -60,19 +60,16 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None):
             
         elif alfvar.imf_type == 3:
             #!double powerlaw index with variable low-mass cutoff
-            mass, imfnorm = getmass(pos.imf3, msto, 
-                                    pos.imf1, pos.imf2, krpa_imf3)
+            mass, imfnorm = getmass(pos.imf3, msto, pos.imf1, pos.imf2, krpa_imf3)
             
             
         elif alfvar.imf_type == 4:
             #non-parametric IMF for 0.08-1.0 Msun; Salpeter slope at >1 Msun
-            mass, imfnorm = getmass(imflo, msto, 
-                                    pos.imf1, pos.imf2, krpa_imf3, 
+            mass, imfnorm = getmass(imflo, msto, pos.imf1, pos.imf2, krpa_imf3, 
                                     pos.imf3, pos.imf4)
             
     #print('msto=', msto)
     #print('mass=', mass)
-
             
     #loop over the filters
     #filters = np.copy(alfvar.filters)

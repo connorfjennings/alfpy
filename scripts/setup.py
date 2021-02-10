@@ -14,7 +14,8 @@ import multiprocessing
 #from mpi4py import MPI
 #from schwimmbad import MPIPool
 #from schwimmbad import MultiPool
-
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 """
 read in and set up all the arrays
@@ -422,57 +423,59 @@ def setup(alfvar, onlybasic = False, ncpu=1):
                    'nip','cop','eup','srp','kp','vp','cup','nap6','nap9']
               
         tstart = time.time()
-
         pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth)
-        with multiprocessing.Pool(ncpu) as pool:
-            # ---- define partial worker for all velbroad---- #
-            for iattr in temlist:
-                print('\n smooth response func ', iattr, end=':')
-                index_list = [(j,k) for (j, k), _ in np.ndenumerate(getattr(alfvar.sspgrid, iattr)[0])]
-                temarr = pool.map(pwork, [getattr(alfvar.sspgrid, iattr)[:,j,k] for (j, k), _ in np.ndenumerate(getattr(alfvar.sspgrid, iattr)[0])] )
-                for ii, (j, k) in enumerate(index_list):
-                    getattr(alfvar.sspgrid, iattr)[:,j,k] = np.copy(temarr[ii])   
+        
+        pool = multiprocessing.Pool(ncpu)
+        # ---- define partial worker for all velbroad---- #
+        for iattr in temlist:
+            print('\n smooth response func ', iattr, end=':')
+            index_list = [(j,k) for (j, k), _ in np.ndenumerate(getattr(alfvar.sspgrid, iattr)[0])]
+            temarr = pool.map(pwork, [getattr(alfvar.sspgrid, iattr)[:,j,k] for (j, k), _ in np.ndenumerate(getattr(alfvar.sspgrid, iattr)[0])] )
+            for ii, (j, k) in enumerate(index_list):
+                getattr(alfvar.sspgrid, iattr)[:,j,k] = np.copy(temarr[ii])   
 
 
 
-            print('\n smooth hotspec ')
-            index_list = [(i, j) for (i, j), _ in np.ndenumerate(alfvar.sspgrid.hotspec[0])]
-            temarr = pool.map(pwork, [alfvar.sspgrid.hotspec[:,i,j] for (i, j), _ in np.ndenumerate(alfvar.sspgrid.hotspec[0])] )
-            for ii, (i, j) in enumerate(index_list):
-                alfvar.sspgrid.hotspec[:,i,j]= np.copy(temarr[ii])
+        print('\n smooth hotspec ')
+        index_list = [(i, j) for (i, j), _ in np.ndenumerate(alfvar.sspgrid.hotspec[0])]
+        temarr = pool.map(pwork, [alfvar.sspgrid.hotspec[:,i,j] for (i, j), _ in np.ndenumerate(alfvar.sspgrid.hotspec[0])] )
+        for ii, (i, j) in enumerate(index_list):
+            alfvar.sspgrid.hotspec[:,i,j]= np.copy(temarr[ii])
 
             
-            alfvar.sspgrid.m7g = velbroad(alfvar.sspgrid.lam, alfvar.sspgrid.m7g,
+        alfvar.sspgrid.m7g = velbroad(alfvar.sspgrid.lam, alfvar.sspgrid.m7g,
                                           sig0, lamlo, lamhi, smooth, velbroad_simple = 1)
 
         
-            # ---- smooth the standard two-part power-law IMF models ---- #
-            print('-------- smooth the standard two-part power-law IMF models')
+        # ---- smooth the standard two-part power-law IMF models ---- #
+        print('-------- smooth the standard two-part power-law IMF models')
         
-            index_list = [(k, j, t, z) for (k, j, t, z), _ in np.ndenumerate(alfvar.sspgrid.logssp[0])]
-            temarr = pool.map(pwork, [alfvar.sspgrid.logssp[:,k,j,t,z] for (k, j, t, z), _ in np.ndenumerate(alfvar.sspgrid.logssp[0])] )
-            for ii, (k, j, t, z) in enumerate(index_list):
-                alfvar.sspgrid.logssp[:,k,j,t,z] = np.copy(temarr[ii])
+        index_list = [(k, j, t, z) for (k, j, t, z), _ in np.ndenumerate(alfvar.sspgrid.logssp[0])]
+        temarr = pool.map(pwork, [alfvar.sspgrid.logssp[:,k,j,t,z] for (k, j, t, z), _ in np.ndenumerate(alfvar.sspgrid.logssp[0])] )
+        for ii, (k, j, t, z) in enumerate(index_list):
+            alfvar.sspgrid.logssp[:,k,j,t,z] = np.copy(temarr[ii])
 
 
-            # ---- smooth the 3-part IMF models ---- #
-            print('-------- smooth the 3-part IMF models')
-            if alfvar.imf_type == 3:
-                index_list = [(k, j, t, m, z) for (k, j, t, m, z), _ in np.ndenumerate(alfvar.sspgrid.logsspm[0])]
-                temarr = pool.map(pwork, [alfvar.sspgrid.logsspm[:,k,j,t,m,z] for (k, j, t, m, z), _ in np.ndenumerate(alfvar.sspgrid.logsspm[0])] )
-                for ii, (k, j, t, m, z) in enumerate(index_list):
-                    alfvar.sspgrid.logsspm[:,k,j,t,m,z] = np.copy(temarr[ii])            
+        # ---- smooth the 3-part IMF models ---- #
+        print('-------- smooth the 3-part IMF models')
+        if alfvar.imf_type == 3:
+            index_list = [(k, j, t, m, z) for (k, j, t, m, z), _ in np.ndenumerate(alfvar.sspgrid.logsspm[0])]
+            temarr = pool.map(pwork, [alfvar.sspgrid.logsspm[:,k,j,t,m,z] for (k, j, t, m, z), _ in np.ndenumerate(alfvar.sspgrid.logsspm[0])] )
+            for ii, (k, j, t, m, z) in enumerate(index_list):
+                alfvar.sspgrid.logsspm[:,k,j,t,m,z] = np.copy(temarr[ii])            
 
 
-            # ---- smooth the non-parametric IMF models ---- #
-            print('-------- smooth the non-parametric IMF models')
-            if alfvar.imf_type == 4:
-                index_list = [(j, t, z) for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0])]
-                temarr = pool.map(pwork, [alfvar.sspgrid.sspnp[:,j,t,z] for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0])] )
-                for ii, (j, t, z) in enumerate(index_list):
-                    alfvar.sspgrid.sspnp[:,j,t,z] = np.copy(temarr[ii]) 
+        # ---- smooth the non-parametric IMF models ---- #
+        print('-------- smooth the non-parametric IMF models')
+        if alfvar.imf_type == 4:
+            index_list = [(j, t, z) for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0])]
+            temarr = pool.map(pwork, [alfvar.sspgrid.sspnp[:,j,t,z] for (j, t, z), _ in np.ndenumerate(alfvar.sspgrid.sspnp[0])] )
+            for ii, (j, t, z) in enumerate(index_list):
+                alfvar.sspgrid.sspnp[:,j,t,z] = np.copy(temarr[ii]) 
                     
     ndur = time.time() - tstart
+    pool.close()
+    pool.join()
     print('\nparallelized velbroad {:.2f}min'.format(ndur/60.))
     alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)
     alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + tiny_number)

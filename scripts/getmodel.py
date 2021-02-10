@@ -1,10 +1,10 @@
 import math, numpy as np
 from velbroad import *
-from linterp import *
+from linterp import locate
 from add_response import add_response
 from getmass import getmass
 from alf_constants import *
-from str2arr import *
+#from str2arr import *
 
 __all__ = ['getmodel']
         
@@ -17,8 +17,7 @@ def getmodel(pos, alfvar, mw = 0):
     to force the IMF to be of the MW (Kroupa 2001) form
     """
     
-    sspgrid = alfvar.sspgrid
-    
+    sspgrid = alfvar.sspgrid    
     msto_t0 = alfvar.msto_t0; msto_t1 = alfvar.msto_t1
     msto_z0 = alfvar.msto_z0; msto_z1 = alfvar.msto_z1; msto_z2=alfvar.msto_z2
     krpa_imf1, krpa_imf2, krpa_imf3 = alfvar.krpa_imf1, alfvar.krpa_imf2, alfvar.krpa_imf3
@@ -28,10 +27,8 @@ def getmodel(pos, alfvar, mw = 0):
     nage = alfvar.nage
     imfr1, imfr2,  imfr3 = alfvar.imfr1, alfvar.imfr2, alfvar.imfr3
         
-    spec = np.empty(alfvar.nl) # output
-    tmp_ltrans, tmp_ftrans_h2o, tmp_ftrans_o2 = np.empty((3, alfvar.nl))
-    emnormall = np.ones(alfvar.neml)
-    imfw = np.zeros(alfvar.nimfnp)
+    #emnormall = np.ones(alfvar.neml)
+    #imfw = np.zeros(alfvar.nimfnp)
     hermite = np.zeros(2)
 
     #---------------------------------------------------------------!
@@ -146,26 +143,37 @@ def getmodel(pos, alfvar, mw = 0):
         elif alfvar.imf_type == 4:
             #print("getting model for imf_type=", alfvar.imf_type)
             # non-parametric IMF, line 138 in getmodel.f90
-            imfw[1-1] = 10**pos.imf1
-            imfw[2-1] = 10**((pos.imf2+pos.imf1)/2.)
-            imfw[3-1] = 10**pos.imf2
-            imfw[4-1] = 10**((pos.imf3+pos.imf2)/2.)
-            imfw[5-1] = 10**pos.imf3
-            imfw[6-1] = 10**((pos.imf4+pos.imf3)/2.)
-            imfw[7-1] = 10**pos.imf4
-            imfw[8-1] = 10**((alfvar.imf5+pos.imf4)/2.)
-            imfw[9-1] = 10**alfvar.imf5
+            imfw = 10**np.array([pos.imf1, (pos.imf2+pos.imf1)/2., pos.imf2, (pos.imf3+pos.imf2)/2., 
+                                 pos.imf3, (pos.imf4+pos.imf3)/2., pos.imf4, (alfvar.imf5+pos.imf4)/2., 
+                                 alfvar.imf5])
+            #imfw[1-1] = 10**pos.imf1
+            #imfw[2-1] = 10**((pos.imf2+pos.imf1)/2.)
+            #imfw[3-1] = 10**pos.imf2
+            #imfw[4-1] = 10**((pos.imf3+pos.imf2)/2.)
+            #imfw[5-1] = 10**pos.imf3
+            #imfw[6-1] = 10**((pos.imf4+pos.imf3)/2.)
+            #imfw[7-1] = 10**pos.imf4
+            #imfw[8-1] = 10**((alfvar.imf5+pos.imf4)/2.)
+            #imfw[9-1] = 10**alfvar.imf5
+            
+            tmp1 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt+1,vm+1]) for i in range(alfvar.nimfnp)]), 
+                          axis=0)
+            tmp2 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt,vm+1]) for i in range(alfvar.nimfnp)]), 
+                          axis=0)
+            tmp3 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt+1,vm]) for i in range(alfvar.nimfnp)]), 
+                          axis=0)
+            tmp4 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt,vm]) for i in range(alfvar.nimfnp)]), 
+                          axis=0)
 
-            tmp1 = np.zeros(sspgrid.sspnp.shape[0])
-            tmp2 = np.zeros(sspgrid.sspnp.shape[0])
-            tmp3 = np.zeros(sspgrid.sspnp.shape[0])
-            tmp4 = np.zeros(sspgrid.sspnp.shape[0])
-
-            for i in range(alfvar.nimfnp):
-                tmp1 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm+1]
-                tmp2 += imfw[i]*sspgrid.sspnp[:,i, vt, vm+1]
-                tmp3 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm]
-                tmp4 += imfw[i]*sspgrid.sspnp[:,i, vt, vm]
+            #tmp1 = np.zeros(sspgrid.sspnp.shape[0])
+            #tmp2 = np.zeros(sspgrid.sspnp.shape[0])
+            #tmp3 = np.zeros(sspgrid.sspnp.shape[0])
+            #tmp4 = np.zeros(sspgrid.sspnp.shape[0])
+            #for i in range(alfvar.nimfnp):
+            #    tmp1 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm+1]
+            #    tmp2 += imfw[i]*sspgrid.sspnp[:,i, vt, vm+1]
+            #    tmp3 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm]
+            #    tmp4 += imfw[i]*sspgrid.sspnp[:,i, vt, vm]
 
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt+1]) * 
@@ -361,25 +369,35 @@ def getmodel(pos, alfvar, mw = 0):
         #add emission lines
         if alfvar.maskem==0:
             # ---- these line ratios come from Nell Byler's Cloudy lookup table
-            emnormall[1-1] = 10**pos.logemline_h / 11.21   # Hy
-            emnormall[2-1]  = 10**pos.logemline_h / 6.16    # Hd
-            emnormall[3-1]  = 10**pos.logemline_h / 2.87    # Hb
-            emnormall[4-1]  = 10**pos.logemline_oiii / 3.0  # [OIII]
-            emnormall[5-1]  = 10**pos.logemline_oiii        # [OIII]
-            emnormall[6-1]  = 10**pos.logemline_ni          # [NI]
-            emnormall[7-1]  = 10**pos.logemline_nii / 2.95  # [NII]
-            emnormall[8-1]  = 10**pos.logemline_h           # Ha
-            emnormall[9-1]  = 10**pos.logemline_nii         # [NII]
-            emnormall[10-1] = 10**pos.logemline_sii         # [SII]
-            emnormall[11-1] = 10**pos.logemline_sii * 0.77  # [SII]
-            emnormall[12-1] = 10**pos.logemline_oii         # [OII]
-            emnormall[13-1] = 10**pos.logemline_oii * 1.35  # [OII]
-            emnormall[14-1] = 10**pos.logemline_h / 65.0    # H12 (ratio is made up)
-            emnormall[15-1] = 10**pos.logemline_h / 55.0    # H11 (ratio is made up)
-            emnormall[16-1] = 10**pos.logemline_h / 45.0    # H10
-            emnormall[17-1] = 10**pos.logemline_h / 35.0    # H9
-            emnormall[18-1] = 10**pos.logemline_h / 25.0    # H8
-            emnormall[19-1] = 10**pos.logemline_h / 18.0    # H7
+            emnormall = 10**np.array([pos.logemline_h, pos.logemline_h, pos.logemline_h, 
+                                      pos.logemline_oiii, pos.logemline_oiii, pos.logemline_ni, 
+                                      pos.logemline_nii, pos.logemline_h, pos.logemline_nii, 
+                                      pos.logemline_sii, pos.logemline_sii, pos.logemline_oii, pos.logemline_oii, 
+                                      pos.logemline_h, pos.logemline_h, pos.logemline_h, 
+                                      pos.logemline_h, pos.logemline_h, pos.logemline_h])
+            emnormall *= np.array([1./11.21, 1./6.16, 1./2.87, 1./3., 
+                                   1., 1., 1./2.95, 1., 1., 1., 0.77, 
+                                   1., 1.35, 1./65, 1./55, 1./45, 1./35, 
+                                   1./25, 1./18])
+            #emnormall[1-1] = 10**pos.logemline_h / 11.21   # Hy
+            #emnormall[2-1]  = 10**pos.logemline_h / 6.16    # Hd
+            #emnormall[3-1]  = 10**pos.logemline_h / 2.87    # Hb
+            #emnormall[4-1]  = 10**pos.logemline_oiii / 3.0  # [OIII]
+            #emnormall[5-1]  = 10**pos.logemline_oiii        # [OIII]
+            #emnormall[6-1]  = 10**pos.logemline_ni          # [NI]
+            #emnormall[7-1]  = 10**pos.logemline_nii / 2.95  # [NII]
+            #emnormall[8-1]  = 10**pos.logemline_h           # Ha
+            #emnormall[9-1]  = 10**pos.logemline_nii         # [NII]
+            #emnormall[10-1] = 10**pos.logemline_sii         # [SII]
+            #emnormall[11-1] = 10**pos.logemline_sii * 0.77  # [SII]
+            #emnormall[12-1] = 10**pos.logemline_oii         # [OII]
+            #emnormall[13-1] = 10**pos.logemline_oii * 1.35  # [OII]
+            #emnormall[14-1] = 10**pos.logemline_h / 65.0    # H12 (ratio is made up)
+            #emnormall[15-1] = 10**pos.logemline_h / 55.0    # H11 (ratio is made up)
+            #emnormall[16-1] = 10**pos.logemline_h / 45.0    # H10
+            #emnormall[17-1] = 10**pos.logemline_h / 35.0    # H9
+            #emnormall[18-1] = 10**pos.logemline_h / 25.0    # H8
+            #emnormall[19-1] = 10**pos.logemline_h / 18.0    # H7
 
             for i in range(alfvar.neml):
                 # ---- allow the em lines to be offset in velocity from the continuum
@@ -406,8 +424,11 @@ def getmodel(pos, alfvar, mw = 0):
     if alfvar.fit_type== 0 and alfvar.powell_fitting==0 and alfvar.fit_trans==1:
         #applied in the observed frame
         tmp_ltrans     = sspgrid.lam / (1+pos.velz/clight*1e5)
-        tmp_ftrans_h2o = linterp(tmp_ltrans, sspgrid.atm_trans_h2o, sspgrid.lam)
-        tmp_ftrans_o2  = linterp(tmp_ltrans, sspgrid.atm_trans_o2, sspgrid.lam)
+
+        tmp_ftrans_h2o = np.interp(x=sspgrid.lam, xp=tmp_ltrans, fp=sspgrid.atm_trans_h2o)
+        #linterp(tmp_ltrans, sspgrid.atm_trans_h2o, sspgrid.lam)
+        tmp_ftrans_o2  = np.interp(x=sspgrid.lam, xp=tmp_ltrans, fp=sspgrid.atm_trans_o2)
+        #linterp(tmp_ltrans, sspgrid.atm_trans_o2, sspgrid.lam)
         spec *= 1.+(tmp_ftrans_h2o-1)*10**pos.logtrans
         spec *= 1.+(tmp_ftrans_o2-1)*10**pos.logtrans
 

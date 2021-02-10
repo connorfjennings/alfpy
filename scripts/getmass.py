@@ -103,18 +103,22 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
         #mbin_nimf = (/0.2,0.4,0.6,0.8,1.0/)
         #mbin_nimf = np.array([0.2,0.4,0.6,0.8,1.0])
         alpha2 = 2.0 - npi_alphav
-        imfw[1-1] = 10**imf1 
-        imfw[2-1] = 10**((imf2+imf1)/2.)
-        imfw[3-1] = 10**imf2
-        imfw[4-1] = 10**((imf3+imf2)/2.)
-        imfw[5-1] = 10**imf3
-        imfw[6-1] = 10**((imf4+imf3)/2.)
-        imfw[7-1] = 10**imf4
-        imfw[8-1] = 10**((imf5+imf4)/2.)
-        imfw[9-1] = 10**imf5
+        imfw = 10**np.array([imf1, (imf2+imf1)/2., imf2, 
+                         (imf3+imf2)/2., imf3, (imf4+imf3)/2., 
+                         imf4, (imf5+imf4)/2., imf5])
+        #imfw[1-1] = 10**imf1 
+        #imfw[2-1] = 10**((imf2+imf1)/2.)
+        #imfw[3-1] = 10**imf2
+        #imfw[4-1] = 10**((imf3+imf2)/2.)
+        #imfw[5-1] = 10**imf3
+        #imfw[6-1] = 10**((imf4+imf3)/2.)
+        #imfw[7-1] = 10**imf4
+        #imfw[8-1] = 10**((imf5+imf4)/2.)
+        #imfw[9-1] = 10**imf5
         
-        for i in range(nimfnp):
-            imfw[i] *= npi_renorm[i]
+        imfw *= npi_renorm
+        #for i in range(nimfnp):
+         #   imfw[i] *= npi_renorm[i]
             
         imfnorm = 0.0
         for i in range(nimfnp):

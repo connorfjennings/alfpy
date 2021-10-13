@@ -1,4 +1,7 @@
 import math, numpy as np
+import scipy
+from scipy.interpolate import RegularGridInterpolator
+
 from velbroad import *
 from linterp import locate
 from add_response import add_response
@@ -6,11 +9,24 @@ from getmass import getmass
 from alf_constants import *
 #from str2arr import *
 
-__all__ = ['getmodel']
+__all__ = ['getmodel_grid']
         
-
+        
+# ---------------------------------------------------------------- #    
+def get_interp_ssp(sspgrid, use_sspm = False):
+    if use_sspm == True:
+        interp_= RegularGridInterpolator((sspgrid.imfx1, sspgrid.imfx2, sspgrid.logagegrid, 
+                                          sspgrid.imfx3, sspgrid.logzgrid2), 
+                                         np.transpose(sspgrid.logsspm, (1,2,3,4,5,0)), method='linear')
+    else:
+        interp_= RegularGridInterpolator((sspgrid.imfx1, sspgrid.imfx2, sspgrid.logagegrid, 
+                                          sspgrid.logzgrid), 
+                                         np.transpose(sspgrid.logssp, (1,2,3,4,0)), method='linear')    
+    return interp_
+    
+    
 # ---------------------------------------------------------------- #
-def getmodel(pos, alfvar, mw = 0):
+def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
     """
     routine to produce a model spectrum (spec) for an input
     set of parameters (pos).  The optional flag 'mw' is used
@@ -26,6 +42,11 @@ def getmodel(pos, alfvar, mw = 0):
     nimf = alfvar.nimf
     nage = alfvar.nage
     imfr1, imfr2,  imfr3 = alfvar.imfr1, alfvar.imfr2, alfvar.imfr3
+    
+    if interp_logsspm is None:
+        interp_logsspm = get_interp_ssp(sspgrid, use_sspm=True)
+    if  interp_logssp is None:
+        interp_logssp = get_interp_ssp(sspgrid, use_sspm=False)
         
     #emnormall = np.ones(alfvar.neml)
     #imfw = np.zeros(alfvar.nimfnp)
@@ -70,6 +91,7 @@ def getmodel(pos, alfvar, mw = 0):
             
 
         if alfvar.imf_type == 2 or alfvar.imf_type == 3:
+            """
             vm3 = max(min(locate(sspgrid.logzgrid2, pos.zh), nzmet3-2),0) 
             dm3 = (pos.zh-sspgrid.logzgrid2[vm3])/(sspgrid.logzgrid2[vm3+1]-sspgrid.logzgrid2[vm3])
             dm3 = max(min(dm3, 1.5), -1.0)
@@ -112,11 +134,14 @@ def getmodel(pos, alfvar, mw = 0):
                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3])
 
             spec = np.power(10, dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
+            """
+            spec = 10**(interp_logsspm([pos.imf1,pos.imf2,pos.logage,pos.imf3,pos.zh]).flatten())
+
 
             
         elif alfvar.imf_type==0 or alfvar.imf_type==1:
             #print("getting model for imf_type=", alfvar.imf_type)
-
+            """
             tmp1 = ((1.0-dx1)*(1.0-dx2)*sspgrid.logssp[:, vv1,vv2,vt+1,vm+1] + 
                    dx1*(1.0-dx2)*sspgrid.logssp[:, vv1+1,vv2,vt+1,vm+1] + 
                    (1.0-dx1)*dx2*sspgrid.logssp[:, vv1,vv2+1,vt+1,vm+1] + 
@@ -138,7 +163,8 @@ def getmodel(pos, alfvar, mw = 0):
                    dx1*dx2*sspgrid.logssp[:,vv1+1,vv2+1,vt,vm])
 
             spec = np.power(10,dt*dm*tmp1 + (1.-dt)*dm*tmp2 + dt*(1.-dm)*tmp3 +(1.-dt)*(1.-dm)*tmp4 )
-
+            """
+            spec = 10**(interp_logssp([pos.imf1,pos.imf2,pos.logage,pos.zh]).flatten())
             
         elif alfvar.imf_type == 4:
             #print("getting model for imf_type=", alfvar.imf_type)
@@ -156,13 +182,13 @@ def getmodel(pos, alfvar, mw = 0):
             #imfw[8-1] = 10**((alfvar.imf5+pos.imf4)/2.)
             #imfw[9-1] = 10**alfvar.imf5
             
-            tmp1 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt+1,vm+1]) for i in range(alfvar.nimfnp)]), 
+            tmp1 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm+1]) for i in range(alfvar.nimfnp)]), 
                           axis=0)
-            tmp2 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt,vm+1]) for i in range(alfvar.nimfnp)]), 
+            tmp2 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm+1]) for i in range(alfvar.nimfnp)]), 
                           axis=0)
-            tmp3 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt+1,vm]) for i in range(alfvar.nimfnp)]), 
+            tmp3 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm]) for i in range(alfvar.nimfnp)]), 
                           axis=0)
-            tmp4 = np.sum(np.array([np.array(imfw[i]*sspnp[:,i,vt,vm]) for i in range(alfvar.nimfnp)]), 
+            tmp4 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm]) for i in range(alfvar.nimfnp)]), 
                           axis=0)
 
             #tmp1 = np.zeros(sspgrid.sspnp.shape[0])
@@ -213,16 +239,20 @@ def getmodel(pos, alfvar, mw = 0):
 
     else:
         # ---- compute a Kroupa IMF, line196
+        """
         spec = np.power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
                         (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
                         dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
                         (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
+        """
+        spec = 10**(interp_logssp([1.3,2.3,pos.logage,pos.zh]).flatten())
 
 
     # ---- vary young population - both fraction and age
     # ---- only include these parameters in the "full" model
     if (alfvar.fit_type==0) and (alfvar.powell_fitting == 0) and (alfvar.fit_two_ages ==1):
         fy = max(min(10**pos.logfy, 1.0), 0.0)
+        """
         vy = max(min(locate(sspgrid.logagegrid, pos.fy_logage), nage-2),0)
         dy = (pos.fy_logage-sspgrid.logagegrid[vy])/(sspgrid.logagegrid[vy+1]-sspgrid.logagegrid[vy])
         dy = max(min(dy, 1.0), -0.3)    #!0.5<age<13.5 Gyr
@@ -230,6 +260,8 @@ def getmodel(pos, alfvar, mw = 0):
                  (1-dy)*dm*sspgrid.logssp[:, imfr1, imfr2, vy, vm+1] + 
                  dy*(1-dm)*sspgrid.logssp[:, imfr1, imfr2, vy+1, vm] + 
                  (1-dy)*(1-dm)*sspgrid.logssp[:, imfr1, imfr2, vy, vm])
+        """
+        yspec = interp_logssp([1.3,2.3,pos.fy_logage,pos.zh]).flatten()
         spec = (1-fy)*spec + fy*10**yspec
 
     # ---- vary age in the response functions

@@ -29,7 +29,7 @@ def worker_m2l(alfvar, use_keys, inarr):
     tem_pos.logemline_sii  = -8.0
     tem_pos.logemline_ni   = -8.0
     tem_pos.logtrans       = -8.0
-    tem_pos.sigma          = 4.0
+    
     tem_mspec = getmodel(tem_pos, alfvar=alfvar)
     tem_mspec_mw = getmodel(tem_pos, alfvar=alfvar, mw=1)
     m2l = getm2l(alfvar.sspgrid.lam, tem_mspec, tem_pos, alfvar=alfvar)
@@ -43,7 +43,7 @@ def calm2l_dynesty(in_res, alfvar, use_keys, outname,ncpu=1):
     f1 = h5py.File("{0}results/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
     for ikey in ['samples', 'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information']:
         dset = f1.create_dataset(ikey, dtype=np.float16, data=getattr(in_res, ikey))
-
+        
     samples, weights = in_res.samples, np.exp(in_res.logwt - in_res.logz[-1])
     mean, cov = dyfunc.mean_and_cov(samples, weights)
     samples = dyfunc.resample_equal(in_res.samples, weights)
@@ -52,11 +52,11 @@ def calm2l_dynesty(in_res, alfvar, use_keys, outname,ncpu=1):
     dset = f1.create_dataset('mean', dtype=np.float16, data=mean)
     dset = f1.create_dataset('cov', dtype=np.float16, data=cov)
     dset = f1.create_dataset('use_keys', data=use_keys)
-
+ 
     nspec = samples.shape[0]
     #select_ind = np.random.choice(np.arange(nspec), size=int(1e3))
     #samples = np.copy(samples[select_ind,:])
-
+                                  
     tstart = time.time()
     pwork = partial(worker_m2l, alfvar, use_keys)
     nspec = samples.shape[0]
@@ -68,11 +68,11 @@ def calm2l_dynesty(in_res, alfvar, use_keys, outname,ncpu=1):
     #pool.join()
     ndur = time.time() - tstart
     print('\npost processing dynesty results: {:.2f}minutes'.format(ndur/60.))
-
+    
     dset = f1.create_dataset('m2l', dtype=np.float16, data=m2l_res)
     f1.close()
-
-
+    
+    
 # ---------------------------------------------------------------- #
 def calm2l_emcee(in_res, alfvar, use_keys, ncpu):
     return None
@@ -86,10 +86,10 @@ def calm2l_mcmc(infile, alfvar, ncpu, outname):
     - for test purpose
     """
     ALFPY_HOME = os.environ['ALFPY_HOME']
-    samples = np.array(pd.read_csv(infile, delim_whitespace=True,
+    samples = np.array(pd.read_csv(infile, delim_whitespace=True, 
                                 header=None, comment='#'))[:,1:47]
     tstart = time.time()
-
+    
     with MultiPool() as pool:
         pwork = partial(worker_m2l, alfvar, key_list)
         ml_res = pool.map(pwork, samples)

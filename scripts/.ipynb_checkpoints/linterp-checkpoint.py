@@ -1,17 +1,10 @@
 import numpy as np
-
+from numba import jit
 __all__ = ['locate', 'linterp', 'tsum']
 
 
 # ---------------------------------------------------------------- #
-def locate_old(inarra, ina):
-    """
-    this is different from locate in alf !!!
-    """
-    return np.argmin(abs(inarra-ina))
-
-
-# ---------------------------------------------------------------- #
+@jit(nopython=True)
 def locate(xx, x):
     """
     - should be the same as locate.f90
@@ -52,40 +45,13 @@ def locate(xx, x):
         
 
 # ---------------------------------------------------------------- #
-def linterp_old(xin,yin,xout):
-    """
-    # routine to linearly interpolate a function yin(xin) at xout
-    """
-    xin, yin = np.asarray(xin), np.asarray(yin)
-    n = xin.size
-    n2 = xout.size
-    yout = np.empty(n2) 
-    
-    for i in range(n2):
-        klo = max(min(locate(xin,xout[i]), n-2), 0)
-        yout[i] = yin[klo] + (yin[klo+1] - yin[klo])*(xout[i]-xin[klo])/(xin[klo+1]-xin[klo])
-    return yout
-
-
-# ---------------------------------------------------------------- #
-def linterp_notuseful(xin,yin,xout):
-    """
-    # routine to linearly interpolate a function yin(xin) at xout
-    """
-    xin, yin = np.asarray(xin), np.asarray(yin)    
-    def quickcal(ixout, xin=xin, yin=yin):
-        k = max(min(np.argmin(abs(xin-ixout)), xin.size-2), 0)
-        return yin[k] + (yin[k+1]-yin[k])*(ixout - xin[k])/(xin[k+1]-xin[k])
-    
-    return np.array(list(map(quickcal, xout)))
-
-
-# ---------------------------------------------------------------- #
+@jit(nopython=True)
 def linterp(xin, yin, xout):
     return np.interp(xout, xin, yin)
 
 
 # ---------------------------------------------------------------- #
+@jit(nopython=True)
 def tsum(xin, yin):
     """
     !simple trapezoidal integration of tabulated function (xin,yin)

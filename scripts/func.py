@@ -5,6 +5,7 @@ from getmodel import getmodel
 from set_pinit_priors import *
 from contnormspec import *
 from alf_constants import *
+from getmodel_gridinterp import *
 
 __all__ = ['func',]
 
@@ -73,7 +74,10 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     # ---- !only compute the model and chi2 if the priors are >0.
     if (pr > tiny_number):
         # ---- !get a new model spectrum
-        mspec = getmodel(npos, alfvar=alfvar)
+        mspec = getmodel_grid(npos, alfvar=alfvar)
+        #mspec = getmodel(npos, alfvar=alfvar)
+        if np.isnan(mspec).any():
+            return np.inf
     else:
         return np.inf
 
@@ -85,6 +89,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
         zmspec = linterp(alfvar.sspgrid.lam[:alfvar.nl_fit]*oneplusz,
                          mspec[:alfvar.nl_fit],
                          alfvar.data.lam)
+
         
         # ---- !compute chi2, looping over wavelength intervals
         datasize = len(data.lam)
@@ -132,7 +137,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
             if (~np.isfinite(tchi2)):
                 return np.inf
 
-            
             func_val  += tchi2
         
             if funit is True:

@@ -448,7 +448,9 @@ if __name__ == "__main__":
     print('input spectrum:', filename+'.dat')
     print('sampler =',run)
 
-    alf(filename, tag, run=run, ncpu=ncpu)
+    dir0 = '/Users/menggu/work/git/Meng-astro/alf_src_study/python_alf/alfpy/pickle/'
+    alf(filename, tag, model_arr = dir0+"alfvar_sspgrid_alff90_test1.p", 
+        run=run, ncpu=ncpu)
 
 
 

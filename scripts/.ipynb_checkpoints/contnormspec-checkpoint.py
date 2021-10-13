@@ -1,6 +1,7 @@
 import numpy as np
 from linterp import locate
 import math
+#from velbroad import find_nearest
 
 __all__ = ['contnormspec']
 # ------------------------------------------------------------------------- 
@@ -38,7 +39,7 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     if npow is None:
         npow = min(int((il2-il1)/poly_dlam), npolymax)-1
     i1 = min(max(locate(lam, il1-buff),0), n1-2)
-    i2 = min(max(locate(lam, il2+buff),1), n1-1)+1
+    i2 = min(max(locate(lam, il2+buff),1), n1-1)+1   
     ml = (il1+il2)/2.0
     
     #!simple linear least squares polynomial fit

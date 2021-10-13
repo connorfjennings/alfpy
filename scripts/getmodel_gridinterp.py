@@ -17,11 +17,11 @@ def get_interp_ssp(sspgrid, use_sspm = False):
     if use_sspm == True:
         interp_= RegularGridInterpolator((sspgrid.imfx1, sspgrid.imfx2, sspgrid.logagegrid, 
                                           sspgrid.imfx3, sspgrid.logzgrid2), 
-                                         np.transpose(sspgrid.logsspm, (1,2,3,4,5,0)), method='linear')
+                                         np.transpose(sspgrid.logsspm, (1,2,3,4,5,0)), method='linear', bounds_error=False, fill_value=np.nan)
     else:
         interp_= RegularGridInterpolator((sspgrid.imfx1, sspgrid.imfx2, sspgrid.logagegrid, 
                                           sspgrid.logzgrid), 
-                                         np.transpose(sspgrid.logssp, (1,2,3,4,0)), method='linear')    
+                                         np.transpose(sspgrid.logssp, (1,2,3,4,0)), method='linear', bounds_error=False, fill_value=np.nan)    
     return interp_
     
     
@@ -135,7 +135,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
 
             spec = np.power(10, dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
             """
-            spec = 10**(interp_logsspm([pos.imf1,pos.imf2,pos.logage,pos.imf3,pos.zh]).flatten())
+            spec = 10**interp_logsspm([pos.imf1,pos.imf2,pos.logage,pos.imf3,pos.zh])[0]
 
 
             
@@ -164,7 +164,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
 
             spec = np.power(10,dt*dm*tmp1 + (1.-dt)*dm*tmp2 + dt*(1.-dm)*tmp3 +(1.-dt)*(1.-dm)*tmp4 )
             """
-            spec = 10**(interp_logssp([pos.imf1,pos.imf2,pos.logage,pos.zh]).flatten())
+            spec = 10**interp_logssp([pos.imf1,pos.imf2,pos.logage,pos.zh])[0]
             
         elif alfvar.imf_type == 4:
             #print("getting model for imf_type=", alfvar.imf_type)
@@ -245,7 +245,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                         dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
                         (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
         """
-        spec = 10**(interp_logssp([1.3,2.3,pos.logage,pos.zh]).flatten())
+        spec = 10**interp_logssp([1.3,2.3,pos.logage,pos.zh])[0]
 
 
     # ---- vary young population - both fraction and age
@@ -261,7 +261,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                  dy*(1-dm)*sspgrid.logssp[:, imfr1, imfr2, vy+1, vm] + 
                  (1-dy)*(1-dm)*sspgrid.logssp[:, imfr1, imfr2, vy, vm])
         """
-        yspec = interp_logssp([1.3,2.3,pos.fy_logage,pos.zh]).flatten()
+        yspec = interp_logssp([1.3,2.3,pos.fy_logage,pos.zh])[0]
         spec = (1-fy)*spec + fy*10**yspec
 
     # ---- vary age in the response functions

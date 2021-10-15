@@ -12,6 +12,14 @@ from alf_constants import *
 __all__ = ['getmodel_grid']
         
         
+# ---------------------------------------------------------------- #        
+def fast_interp(trainX, trainY, dataX):
+    interp_= RegularGridInterpolator(trainX, trainY, method='linear', 
+                                     bounds_error=False, fill_value=np.nan)  
+    return interp_(dataX)
+
+
+
 # ---------------------------------------------------------------- #    
 def get_interp_ssp(sspgrid, use_sspm = False):
     if use_sspm == True:
@@ -102,7 +110,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                    (1-dx1)*(1-dx2)*dx3*sspgrid.logsspm[:,vv1,vv2,vt+1,vv3+1,vm3+1] + 
                    dx1*(1-dx2)*(dx3)*sspgrid.logsspm[:,vv1+1,vv2,vt+1,vv3+1,vm3+1] + 
                    (1-dx1)*dx2*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt+1,vv3+1,vm3+1] + 
-                   (dx1)*(dx2)*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3,vm3+1] + 
+                   dx1*dx2*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3,vm3+1] + 
                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt+1,vv3+1,vm3+1])
 
             tmp2 = ((1-dx1)*(1-dx2)*(1-dx3)*sspgrid.logsspm[:,vv1,vv2,vt,vv3,vm3+1] + 
@@ -110,7 +118,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                    (1-dx1)*dx2*(1-dx3)*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3,vm3+1] + 
                    (1-dx1)*(1-dx2)*dx3*sspgrid.logsspm[:,vv1,vv2,vt,vv3+1,vm3+1] + 
                    dx1*(1-dx2)*dx3*sspgrid.logsspm[:,vv1+1,vv2,vt,vv3+1,vm3+1] + 
-                   (1-dx1)*(dx2)*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3+1,vm3+1] + 
+                   (1-dx1)*dx2*dx3*sspgrid.logsspm[:,vv1,vv2+1,vt,vv3+1,vm3+1] + 
                    dx1*dx2*(1-dx3)*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3,vm3+1] + 
                    dx1*dx2*dx3*sspgrid.logsspm[:,vv1+1,vv2+1,vt,vv3+1,vm3+1])
 
@@ -266,41 +274,58 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
 
     # ---- vary age in the response functions
     if alfvar.use_age_dep_resp_fcns == 0:
+        
         # ---- force the use of the response fcn at age=fix_age_dep_resp_fcns
         vr = max(min(locate(sspgrid.logagegrid_rfcn, np.log10(alfvar.fix_age_dep_resp_fcns)), alfvar.nage_rfcn-2),0)
         dr = (np.log10(alfvar.fix_age_dep_resp_fcns)-sspgrid.logagegrid_rfcn[vr])/(sspgrid.logagegrid_rfcn[vr+1]-sspgrid.logagegrid_rfcn[vr])
         dr = max(min(dr, 1.0), 0.0)
+        
+        use_logage = math.log10(alfvar.fix_age_dep_resp_fcns)
 
     else:
+        
         # ---- should be using mass-weighted age here
         vr = max(min(locate(sspgrid.logagegrid_rfcn,pos.logage),alfvar.nage_rfcn-2),0)
         dr = (pos.logage-sspgrid.logagegrid_rfcn[vr])/(sspgrid.logagegrid_rfcn[vr+1]-sspgrid.logagegrid_rfcn[vr])
         dr = max(min(dr, 1.0), 0.0)
+        
+        use_logage = pos.logage
 
         
     # ---- vary metallicity in the response functions, line 221
     if alfvar.use_z_dep_resp_fcns == 0:
+        
         vm2 = max(min(locate(sspgrid.logzgrid,alfvar.fix_z_dep_resp_fcns),nzmet-2),0)
         dm2 = (alfvar.fix_z_dep_resp_fcns-sspgrid.logzgrid[vm2])/(sspgrid.logzgrid[vm2+1]-sspgrid.logzgrid[vm2])
         dm2 = max(min(dm2, 1.0), 0.0)
+        
+        use_zh = alfvar.fix_z_dep_resp_fcns
     else:
+        
         vm2 = vm
         dm2 = dm
-
-
+        
+        use_zh = pos.zh
+    
+    train_logage_grid = sspgrid.logagegrid_rfcn
+    train_z_grid = sspgrid.logzgrid
     # ---- Only sigma, velz, logage, and [Z/H] are fit when either
     # ---- fitting in Powell mode or "super simple" mode
     # line 250
     if (alfvar.powell_fitting ==0) and (alfvar.fit_type != 2):
+                
+        """
         #vary [Fe/H]
         spec = add_response(spec, pos.feh, 0.3, dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.fep,sspgrid.fem)
         #vary [O/H]
         spec = add_response(spec, pos.ah, 0.3, dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.ap)
+        
         #vary [C/H]
         spec = add_response(spec, pos.ch, 0.15,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.cp, sspgrid.cm)
+       
         #vary [N/H]
         spec = add_response(spec, pos.nh, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.np, sspgrid.nm)
@@ -316,6 +341,60 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
         #vary [Ti/H]
         spec = add_response(spec, pos.tih, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.tip, sspgrid.tim)
+        """
+        
+        
+        
+        all_add = []
+        for tem_attr in ['feh', 'ah', 'ch', 'nh', 'mgh', 'sih', 'cah', 'tih', 'nah']:
+            tem_pos = getattr(pos, tem_attr)
+            range_ = 0.3
+            if tem_attr == 'ch':
+                range_ = 0.15
+            
+            if tem_attr == 'nah' and (tem_pos >=0.3 and tem_pos<0.6):
+                use_response = getattr(sspgrid, 'nap')/sspgrid.solar
+                tem_add1 = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(use_response, (1,2,0)), method='linear',
+                                                  bounds_error=False, fill_value=np.nan)([use_logage, use_zh])[0]
+                
+                use_response = (getattr(sspgrid, 'nap6')-getattr(sspgrid, 'nap'))/sspgrid.solar
+                tem_add2 = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(use_response, (1,2,0)), method='linear',
+                                                  bounds_error=False, fill_value=np.nan)([use_logage, use_zh])[0]
+                tem_add = tem_add1 + tem_add2*(pos.nah-0.3)/0.3 - 1.0
+                all_add.append(tem_add)
+                
+            elif tem_attr == 'nah' and tem_pos >=0.6:
+                use_response = getattr(sspgrid, 'nap6')/sspgrid.solar
+                tem_add1 = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(use_response, (1,2,0)), method='linear',
+                                                  bounds_error=False, fill_value=np.nan)([use_logage, use_zh])[0]
+                use_response = (getattr(sspgrid, 'nap9')-getattr(sspgrid, 'nap6'))/sspgrid.solar
+                tem_add2 = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(use_response, (1,2,0)), method='linear',
+                                                  bounds_error=False, fill_value=np.nan)([use_logage, use_zh])[0]
+                tem_add = tem_add1 + tem_add2*(pos.nah-0.6)/0.6 - 1.0
+                all_add.append(tem_add)
+                
+            else:
+                if tem_pos > 0 or tem_attr in ['ah']:
+                    use_response = getattr(sspgrid, tem_attr[:-1]+'p')/sspgrid.solar
+                    tem_add = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(use_response, (1,2,0)), method='linear',
+                                                  bounds_error=False, fill_value=np.nan)([use_logage, use_zh])[0]
+                    all_add.append( (tem_add - 1.0)*tem_pos/range_)
+                else: 
+                    use_response = getattr(sspgrid, tem_attr[:-1]+'m')/sspgrid.solar
+                    tem_add = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(use_response, (1,2,0)), method='linear',
+                                                  bounds_error=False, fill_value=np.nan)([use_logage, use_zh])[0]                
+                    all_add.append((tem_add - 1.0)*math.fabs(tem_pos)/range_)
+
+        for _ in all_add:
+            spec *= 1.+ _
+        
+        """
         #vary [Na/H] (special case)
         if pos.nah < 0.3:
             spec = add_response(spec, pos.nah, 0.3, dr,vr,dm2,vm2, 
@@ -323,7 +402,6 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
             
             
         elif pos.nah >= 0.3 and pos.nah < 0.6:
-
             tmpr = (dr*dm2*sspgrid.nap[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + 
                     (1-dr)*dm2*sspgrid.nap[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + 
                     dr*(1-dm2)*sspgrid.nap[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + 
@@ -350,7 +428,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                    (1-dr)*(1-dm2)*(sspgrid.nap9[:,vr,vm2]-sspgrid.nap6[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
 
             spec *= tmpr+tmp*(pos.nah-0.6)/0.6
-
+        """
 
 
     # ---- only include these parameters in the "full" model, line325
@@ -359,8 +437,10 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
         # ---- vary Teff (special case - force use of the 13 Gyr model)
         spec = add_response(spec, pos.teff, 50.,1.0, alfvar.nage_rfcn-2, dm2, vm2,
                             sspgrid.solar, sspgrid.teffp, sspgrid.teffm)
+        
          
         # ---- add a hot star (interpolate in hot_teff and [Z/H]
+        """
         vh   = max(min(locate(sspgrid.teffarrhot, pos.hotteff), alfvar.nhot-2), 0)
         dh   = (pos.hotteff-sspgrid.teffarrhot[vh])/(sspgrid.teffarrhot[vh+1]-sspgrid.teffarrhot[vh])
         
@@ -368,14 +448,19 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                (1-dh)*dm*sspgrid.hotspec[:,vh,vm+1] + 
                dh*(1-dm)*sspgrid.hotspec[:,vh+1,vm] + 
                (1-dh)*(1-dm)*sspgrid.hotspec[:,vh,vm])
-
+        """
+        tmp = RegularGridInterpolator((sspgrid.teffarrhot, train_z_grid), 
+                                      np.transpose(sspgrid.hotspec, (1,2,0)), method='linear',
+                                      bounds_error=False, fill_value=np.nan)([pos.hotteff, use_zh])[0]
         fy   = max(min(10**pos.loghot, 1.0), 0.0)
-        spec = (1-fy)*spec + fy*tmp
+        #spec = (1-fy)*spec + fy*tmp
+        spec = spec + fy*tmp
 
         # ---- add in an M7 giant
         fy   = max(min(10**pos.logm7g, 1.0), 0.0)
         spec = (1.0-fy)*spec + fy*sspgrid.m7g
 
+        """
         # ---- vary [K/H] ---- #
         spec = add_response(spec,pos.kh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.kp)
         # ---- vary [V/H]
@@ -396,7 +481,28 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
         spec = add_response(spec,pos.bah,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.bap,sspgrid.bam)
         # ---- vary [Eu/H]
         spec = add_response(spec,pos.euh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.eup)
-
+        """
+        
+        all_add = []
+        for tem_attr in ['kh', 'vh', 'crh', 'mnh', 'coh', 'nih', 'cuh', 'srh', 'bah', 'euh']:
+            tem_pos = getattr(pos, tem_attr)
+            if tem_pos > 0 or tem_attr in ['kh', 'vh', 'crh', 'mnh', 'coh', 'nih', 'cuh', 'srh', 'euh']:
+                tem_add = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(getattr(sspgrid, tem_attr[:-1]+'p')/sspgrid.solar, (1,2,0)), 
+                                                  method='linear',
+                                                  bounds_error=False, 
+                                                  fill_value=np.nan)([use_logage, use_zh])[0]
+                all_add.append( (tem_add - 1.0)*tem_pos/0.3)
+            else:
+                tem_add = RegularGridInterpolator((train_logage_grid, train_z_grid), 
+                                                  np.transpose(getattr(sspgrid, tem_attr[:-1]+'m')/sspgrid.solar, (1,2,0)), 
+                                                  method='linear',
+                                                  bounds_error=False, 
+                                                  fill_value=np.nan)([use_logage, use_zh])[0]                
+                all_add.append( (tem_add - 1.0)*math.fabs(tem_pos)/0.3)
+        for _ in all_add:
+            spec *= 1. + _
+        
         
         #add emission lines
         if alfvar.maskem==0:
@@ -458,9 +564,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
         tmp_ltrans     = sspgrid.lam / (1+pos.velz/clight*1e5)
 
         tmp_ftrans_h2o = np.interp(x=sspgrid.lam, xp=tmp_ltrans, fp=sspgrid.atm_trans_h2o)
-        #linterp(tmp_ltrans, sspgrid.atm_trans_h2o, sspgrid.lam)
         tmp_ftrans_o2  = np.interp(x=sspgrid.lam, xp=tmp_ltrans, fp=sspgrid.atm_trans_o2)
-        #linterp(tmp_ltrans, sspgrid.atm_trans_o2, sspgrid.lam)
         spec *= 1.+(tmp_ftrans_h2o-1)*10**pos.logtrans
         spec *= 1.+(tmp_ftrans_o2-1)*10**pos.logtrans
 

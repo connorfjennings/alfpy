@@ -1,6 +1,8 @@
 import numpy as np
 #from alf_vars import *
+from numba import jit
 
+@jit(nopython=True)
 def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
     """
     !compute mass in stars and remnants (normalized to 1 Msun at t=0)
@@ -22,8 +24,8 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
     #!---------------------------------------------------------------!
     m2 = 0.5; m3 = 1.0
     if mlo > m2:
-        print('GETMASS ERROR: mlo>m2: %.2e, %.2e' %(mlo, m2))
-        return getmass, np.nan
+        #print('GETMASS ERROR: mlo>m2: %.2e, %.2e' %(mlo, m2))
+        return np.nan, np.nan
     
     #alfvar = ALFVAR()
     #imflo, imfhi = alfvar.imflo, alfvar.imfhi
@@ -224,11 +226,6 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
         getmass = getmass / imfnorm
 
         
-    if timfnorm is not None:
-        timfnorm = imfnorm
-        return getmass, imfnorm, timfnorm
-        
-    else:   
-        return getmass, imfnorm
+    return getmass, imfnorm
 
 

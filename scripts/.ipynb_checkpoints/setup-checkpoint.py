@@ -14,8 +14,8 @@ import multiprocessing
 #from mpi4py import MPI
 #from schwimmbad import MPIPool
 #from schwimmbad import MultiPool
-from joblib import Parallel, delayed
-from tqdm import tqdm
+#from joblib import Parallel, delayed
+#from tqdm import tqdm
 
 """
 read in and set up all the arrays
@@ -271,6 +271,11 @@ def setup(alfvar, onlybasic = False, ncpu=1):
 
     # -- read in hot stars
     for j in range(alfvar.nzmet):
+        f24 = np.array(pd.read_csv("{0}infiles/hotteff_feh{1}.dat".format(ALF_HOME, charz2[j]), 
+                                   delim_whitespace=True, header=None, comment='#'))
+        alfvar.sspgrid.hotspec[:,:,j] = f24[alfvar.nstart-1:alfvar.nend, 1:]
+        
+        """
         f24 = np.array(pd.read_csv("{0}infiles/at12_feh{1}_afe+0.0_t08000g4.00"\
                                    ".spec.s100".format(ALF_HOME, charz2[j]), 
                                    delim_whitespace=True, header=None, comment='#'))
@@ -293,7 +298,7 @@ def setup(alfvar, onlybasic = False, ncpu=1):
                                    ".spec.s100".format(ALF_HOME, charz2[j]), 
                                    delim_whitespace=True, header=None, comment='#'))
         alfvar.sspgrid.hotspec[:,3,j] = f27[alfvar.nstart-1:alfvar.nend, 1]
-
+        """
 
         # -- normalize to a 13 Gyr SSP at 1um (same norm for the M7III param)
         # -- NB: this normalization was changed on 7/20/15.  Also, a major
@@ -306,7 +311,8 @@ def setup(alfvar, onlybasic = False, ncpu=1):
 
 
     #hot star Teff in kK
-    alfvar.sspgrid.teffarrhot = np.array([8.0, 10.0, 20.0, 30.0])
+    #alfvar.sspgrid.teffarrhot = np.array([8.0, 10.0, 20.0, 30.0])
+    alfvar.sspgrid.teffarrhot = np.array([8.,10.,12., 14.,16.,18., 20.,22.,24.,26., 28., 30.0])
 
     #read in M7III star, normalized to a 13 Gyr SSP at 1um
     f23 = np.loadtxt("{0}infiles/M7III.spec.s100".format(ALF_HOME))
@@ -389,9 +395,6 @@ def setup(alfvar, onlybasic = False, ncpu=1):
 
     # ---- smooth by the instrumental resolution
     # ---- use the simple version which allows for arrays of arbitrary length
-    print('ltrains, strans=')
-    print(ltrans)
-    print(strans)
     strans_ = linterp(ltrans, strans, alfvar.lsky)
     alfvar.fsky = velbroad(lam = alfvar.lsky, spec = alfvar.fsky,
                            sigma = sig0, minl = lamlo, maxl = lamhi,

@@ -1,10 +1,11 @@
 import alf_vars
 import numpy as np
-
+from numba import jit
 __all__ = ['add_response']
 
 
 # ---------------------------------------------------------------- #
+@jit(nopython=True)
 def add_response(spec, pos, range_, 
                  dr, vr, dm, vm, 
                  solar, plus, minus=None):

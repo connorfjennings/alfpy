@@ -5,7 +5,6 @@ from getm2l import *
 from getmodel import *
 from str2arr import *
 import time
-from str2arr import key_list
 import h5py
 
 import multiprocessing
@@ -17,6 +16,10 @@ from tqdm import tqdm
 
 
 __all__ = ['calm2l_dynesty']
+ALFPY_HOME = os.environ['ALFPY_HOME']
+
+key_list = get_default_keylist()
+
 # ---------------------------------------------------------------- #
 def worker_m2l(alfvar, use_keys, inarr):
     tem_posarr = fill_param(inarr, usekeys = use_keys)
@@ -30,15 +33,18 @@ def worker_m2l(alfvar, use_keys, inarr):
     tem_pos.logemline_ni   = -8.0
     tem_pos.logtrans       = -8.0
     tem_pos.sigma          = 4.0
+    
     tem_mspec = getmodel(tem_pos, alfvar=alfvar)
     tem_mspec_mw = getmodel(tem_pos, alfvar=alfvar, mw=1)
-    m2l = getm2l(alfvar.sspgrid.lam, tem_mspec, tem_pos, alfvar=alfvar)
-    m2lmw = getm2l(alfvar.sspgrid.lam, tem_mspec_mw, tem_pos, mw=1, alfvar=alfvar)
+    m2l = getm2l(alfvar.sspgrid.lam, tem_mspec, tem_pos, 
+                 alfvar.nstart, alfvar.nend, alfvar.nfil, alfvar.imf_type, )
+    m2lmw = getm2l(alfvar.sspgrid.lam, tem_mspec_mw, tem_pos,
+                   alfvar.nstart, alfvar.nend, alfvar.nfil, alfvar.imf_type, mw=1)
     return np.append(m2l,m2lmw)
 
+
 # ---------------------------------------------------------------- #
-def calm2l_dynesty(in_res, alfvar, use_keys, outname,ncpu=1):
-    ALFPY_HOME = os.environ['ALFPY_HOME']
+def calm2l_dynesty(in_res, alfvar, use_keys, outname, ncpu=1):
     print('creating results file:\n {0}results/res_dynesty_{1}.hdf5'.format(ALFPY_HOME, outname))
     f1 = h5py.File("{0}results/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
     for ikey in ['samples', 'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information']:
@@ -54,8 +60,8 @@ def calm2l_dynesty(in_res, alfvar, use_keys, outname,ncpu=1):
     dset = f1.create_dataset('use_keys', data=use_keys)
 
     nspec = samples.shape[0]
-    #select_ind = np.random.choice(np.arange(nspec), size=int(1e3))
-    #samples = np.copy(samples[select_ind,:])
+    select_ind = np.random.choice(np.arange(nspec), size=1000)
+    samples = np.copy(samples[select_ind,:])
 
     tstart = time.time()
     pwork = partial(worker_m2l, alfvar, use_keys)

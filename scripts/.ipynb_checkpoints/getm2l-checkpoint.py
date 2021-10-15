@@ -1,40 +1,49 @@
-import numpy as np, pandas as pd
+import os, numpy as np, pandas as pd
 from alf_vars import *
 from linterp import *
 from getmass import getmass
 from alf_constants import *
 from sedpy import observate
-
+from numba import jit
 __all__ = ['getm2l']
 
-def getm2l(lam, spec, pos, mw = 0, alfvar=None, other_filter = None):
+ALF_HOME = os.environ['ALF_HOME']
+f15 = np.array(pd.read_csv('{0}infiles/filters.dat'.format(ALF_HOME),
+                               delim_whitespace=True, header=None, comment='#'))
+
+#@jit(nopython=True)
+def getm2l(lam, spec, pos, 
+           nstart, nend, nfil, imf_type, 
+           mw = 0, other_filter = None):
     """
     !compute mass-to-light ratio in several filters (AB mags)
     -- INPUTS: lam, spec, pos
     -- OUTPUTS: m2l
     """
-    if alfvar == None:
-        alfvar = ALFVAR()
-    nfil = alfvar.nfil
-    nl = alfvar.nl
+    #if alfvar == None:
+    #    alfvar = ALFVAR()
+    #nfil = alfvar.nfil
+    nl = nend - nstart + 1
     
-    nstart = alfvar.nstart
-    msto_t0 = alfvar.msto_t0; msto_t1 = alfvar.msto_t1
-    msto_z0 = alfvar.msto_z0; msto_z1 = alfvar.msto_z1; msto_z2=alfvar.msto_z2
-    krpa_imf1, krpa_imf2, krpa_imf3 = alfvar.krpa_imf1, alfvar.krpa_imf2, alfvar.krpa_imf3
-    imflo, imfhi = alfvar.imflo, alfvar.imfhi
+    #nstart = alfvar.nstart
+    #msto_t0 = alfvar.msto_t0; msto_t1 = alfvar.msto_t1
+    #msto_z0 = alfvar.msto_z0; msto_z1 = alfvar.msto_z1; msto_z2=alfvar.msto_z2
+    #krpa_imf1, krpa_imf2, krpa_imf3 = alfvar.krpa_imf1, alfvar.krpa_imf2, alfvar.krpa_imf3
+    #imflo, imfhi = alfvar.imflo, alfvar.imfhi
+    msto_t0 = 0.33250847; msto_t1 = -0.29560944
+    msto_z0 = 0.95402521; msto_z1= 0.21944863; msto_z2=0.070565820
+    krpa_imf1, krpa_imf2, krpa_imf3 = 1.3, 2.3, 2.3
+    imflo, imfhi = 0.08, 100.0
+    magsun = (4.64, 4.52, 5.14)
     
     #f15 = np.loadtxt('{0}infiles/filters.dat'.format(ALF_HOME))
-    f15 = np.array(pd.read_csv('{0}infiles/filters.dat'.format(ALF_HOME),
-                               delim_whitespace=True, header=None, comment='#'))
     if other_filter is not None:
         filterlist = observate.load_filters(other_filter)
-        nfil = alfvar.nfil + len(other_filter)
+        nfil = nfil + len(other_filter)
 
-        
-    filters = np.zeros((alfvar.nl, nfil))
-    for fi in range(alfvar.nfil):
-        filters[:,fi] = np.copy(f15[alfvar.nstart-1:alfvar.nend, fi+1])
+    filters = np.zeros((nl, nfil))
+    for fi in range(nfil):
+        filters[:,fi] = np.copy(f15[nstart-1:nend, fi+1])
         
     m2l = np.zeros(nfil)
     mag = np.zeros(nfil)
@@ -49,27 +58,27 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None, other_filter = None):
         mass, imfnorm = getmass(imflo, msto, 
                                 krpa_imf1, krpa_imf2, krpa_imf3)
     else:
-        if alfvar.imf_type ==0:
+        if imf_type ==0:
             #!single power-law IMF with a fixed lower-mass cutoff
             mass, imfnorm = getmass(imflo, msto, 
                                     pos.imf1, pos.imf1, krpa_imf3)
             
-        elif alfvar.imf_type ==1: 
+        elif imf_type ==1: 
             #!double power-law IMF with a fixed lower-mass cutoff
             mass, imfnorm = getmass(imflo, msto, 
                                     pos.imf1, pos.imf2, krpa_imf3)
             
-        elif alfvar.imf_type ==2:
+        elif imf_type ==2:
             #!single powerlaw index with variable low-mass cutoff
             mass, imfnorm = getmass(pos.imf3, msto, 
                                     pos.imf1, pos.imf1, krpa_imf3)
             
-        elif alfvar.imf_type == 3:
+        elif imf_type == 3:
             #!double powerlaw index with variable low-mass cutoff
             mass, imfnorm = getmass(pos.imf3, msto, pos.imf1, pos.imf2, krpa_imf3)
             
             
-        elif alfvar.imf_type == 4:
+        elif imf_type == 4:
             #non-parametric IMF for 0.08-1.0 Msun; Salpeter slope at >1 Msun
             mass, imfnorm = getmass(imflo, msto, pos.imf1, pos.imf2, krpa_imf3, 
                                     pos.imf3, pos.imf4)
@@ -84,9 +93,9 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None, other_filter = None):
         jmags = observate.getSED(lam, fv, filterlist=filterlist)
     
     for j in range(nfil):
-        if j >= alfvar.nfil:
-            jmag = jmags[j-alfvar.nfil]
-            solar_mag =solar_mag_l[j-alfvar.nfil]
+        if j >= nfil:
+            jmag = jmags[j-nfil]
+            solar_mag =solar_mag_l[j-nfil]
             m2l[j] = mass/10**(2./5*(solar_mag-jmag))
         else:
             jmag = tsum(lam, aspec * filters[:,j]/lam)
@@ -94,7 +103,7 @@ def getm2l(lam, spec, pos, mw = 0, alfvar=None, other_filter = None):
                 m2l[j] = 0.
             else:
                 jmag = -2.5*np.log10(jmag)-48.60
-                m2l[j] = mass/10**(2./5*(alfvar.magsun[j]-jmag))
+                m2l[j] = mass/10**(2./5*(magsun[j]-jmag))
                 if m2l[j] > 100:
                     m2l[j] = 0.
         mag[j] = jmag

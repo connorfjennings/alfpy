@@ -27,6 +27,8 @@ from post_process import calm2l_dynesty
 
 # -------------------------------------------------------- #
 global key_list
+key_list = get_default_keylist()
+
 global use_keys
 use_keys = ['velz', 'sigma', 'logage', 'zh', 'feh',
             'ah', 'ch', 'nh','nah','mgh','sih','kh','cah','tih',
@@ -127,8 +129,8 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
         pickle_model_name = '{0}pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
         print('No existing model array.  We will create one and pickle dump it to \n'+pickle_model_name)
         alfvar = ALFVAR()
-        with open(pickle_model_name, 'wb') as handle:
-            pickle.dump(alfvar, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        #with open(pickle_model_name, 'wb') as handle:
+        #    pickle.dump(alfvar, handle, protocol=pickle.HIGHEST_PROTOCOL)
         #pickle.dump(alfvar, open(pickle_model_name, "wb" ))
 
     nmcmc = 300    # -- number of chain steps to print to file
@@ -352,6 +354,8 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     global_alfvar = copy.deepcopy(alfvar)
     global_prloarr = copy.deepcopy(prloarr)
     global_prhiarr = copy.deepcopy(prhiarr)
+        
+    
 
     # -------- optimize the first four parameters -------- #
     prior_bounds = list(zip(global_prloarr[:4], global_prhiarr[:4]))
@@ -410,6 +414,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     elif run == 'dynesty':
         # ---------------------------------------------------------------- #
         ndim = len(use_keys)
+        """
         with multiprocessing.Pool(ncpu) as pool:
             dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, ndim, nlive = int(50*ndim),
                                              sample='rslice', bootstrap=0,pool=pool, queue_size = ncpu)
@@ -421,9 +426,9 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
             print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
         pool.close()
         results = dsampler.results
-        pickle.dump(results, open('{0}/results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
-
-        results = pickle.load(open('{0}/results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
+        pickle.dump(results, open('{0}results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
+        """
+        results = pickle.load(open('{0}results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
         # ---- post process ---- #
         calm2l_dynesty(results, alfvar, use_keys=use_keys, outname=filename+'_'+tag, ncpu=ncpu)
 
@@ -449,7 +454,7 @@ if __name__ == "__main__":
     print('sampler =',run)
 
     dir0 = '/Users/menggu/work/git/Meng-astro/alf_src_study/python_alf/alfpy/pickle/'
-    alf(filename, tag, model_arr = dir0+"alfvar_sspgrid_alff90_test1.p", 
+    alf(filename, tag, model_arr = dir0+'alfvar_sspgrid_ldss3_dr269_n1600_Re8_wave6e.p',
         run=run, ncpu=ncpu)
 
 

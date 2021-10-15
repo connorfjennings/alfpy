@@ -5,13 +5,15 @@ from str2arr import *
 from getmodel import *
 from getm2l import *
 from alf_constants import *
+from setup import *
 
 __all__ = ['spec_from_sum']
 
 
-def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2', 
-                  returnspec = False, 
-                  resdir = "{0}results".format(ALF_HOME)):
+def spec_from_sum(filename, 
+                  getsum = 'minchi2', returnspec = False, 
+                  resdir = "{0}results".format(ALF_HOME), 
+                  alfvar=None,):
     """
     !takes a *sum file as input and returns the corresponding 
     !model spectrum associated with min(chi^2)
@@ -19,7 +21,6 @@ def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2',
     USE nr, ONLY : gasdev,locate,powell,ran1
     USE ran_state, ONLY : ran_seed,ran_init
     """
-    
     
     #!-----------------------------------------------------------!
     #!-----------------------------------------------------------!    
@@ -30,11 +31,13 @@ def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2',
         
         
     #!-----------------------------------------------------------!
-    if in_alfvar is None:
-        alfvar = pickle.load(open('alfvar_sspgrid_irldss3_imftype1.p', "rb" ))
-    else:
-        alfvar = copy.deepcopy(in_alfvar)
-        
+    #if in_alfvar is None:
+    #    alfvar = pickle.load(open('alfvar_sspgrid_irldss3_imftype1.p', "rb" ))
+    #else:
+    #    alfvar = copy.deepcopy(in_alfvar)
+    if alfvar is None:
+        alfvar = ALFVAR()
+        alfvar = setup(alfvar, onlybasic = False, ncpu=8)    
         
     #read in the header to set the relevant parameters
     char='#'
@@ -88,7 +91,6 @@ def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2',
     
     d1 = np.copy(mean_[0])
     posarr = np.copy(mean_[1:47])
-    #print('posarr', posarr)
     mlx2 = np.copy(mean_[-6:])
 
     # ---- copy the input parameter array into the structure
@@ -112,10 +114,10 @@ def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2',
     #pos.loghot = -8.0
     # ------------------------------------------------------------!
     # get the model spectrum
+    
     mspec = getmodel(pos, alfvar=alfvar)
     #m2l = getm2l(lam, mspec, pos, alfvar=alfvar) 
-    #print('m2l=', m2l)
-    
+
     #redshift the spectrum
     oneplusz = (1+pos.velz/clight*1e5)
     zmspec   = linterp(lam*oneplusz, mspec, lam)
@@ -129,4 +131,6 @@ def spec_from_sum(filename, in_alfvar=None, getsum = 'minchi2',
                    delimiter="     ", 
                    fmt='   %12.4f   %12.4E')
         return pos, alfvar
+    
+    return pos, alfvar, mspec
 

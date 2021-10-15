@@ -1,10 +1,12 @@
 import numpy as np
 from linterp import locate
 import math
+from numba import jit
 #from velbroad import find_nearest
 
 __all__ = ['contnormspec']
 # ------------------------------------------------------------------------- 
+@jit(nopython=True)
 def npoly(x,arr):
     for i in range(arr.size):
         arr[i] = x**i
@@ -12,6 +14,7 @@ def npoly(x,arr):
 
 
 # ------------------------------------------------------------------------- 
+#@jit(nopython=True)
 def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False, 
                  npolymax = 10, npow = None):
     """

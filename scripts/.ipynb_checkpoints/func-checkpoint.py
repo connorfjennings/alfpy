@@ -11,7 +11,7 @@ __all__ = ['func',]
 
 # ---------------------------------------------------------------- #
 def func(alfvar, in_posarr, prhiarr = None, prloarr=None, 
-         funit=False, usekeys = key_list):
+         funit=False, usekeys = None):
     """  
     !routine to get a new model and compute chi^2.  Optionally,
     !the model spectrum is returned (spec).  The model priors
@@ -32,6 +32,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     data = alfvar.data
     l1, l2 = alfvar.l1, alfvar.l2    
     
+    if usekeys is None:
+        usekeys = get_default_keylist()    
     # ---------------------------------------------------------------- #    
     if prhiarr is None or prloarr is None:
         _, prlo, prhi = set_pinit_priors(alfvar)
@@ -48,9 +50,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     pr = 1.0
     
     if (nposarr>prhiarr).sum() + (nposarr<prloarr).sum() >0:
-        #print(np.where(nposarr>prhiarr))
-        #print(np.where(nposarr<prloarr))
-        #print('fun.py, out of limits', nposarr)
         pr = 0.0
 
     # ---------------------------------------------------------------- #
@@ -59,7 +58,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     if (alfvar.imf_type == 4 and alfvar.nonpimf_regularize == 1):
         if np.logical_and(npos.imf2 - npos.imf1+ alfvar.corr_bin_weight[2]-alfvar.corr_bin_weight[0] < 0.0,
                           npos.imf3 - pos.imf2 + alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] > 0.0) :
-             pr=0.0
+            
+            pr=0.0
             
         if np.logical_and(npos.imf3-npos.imf2+alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] < 0.0,
                           npos.imf4-npos.imf3+alfvar.corr_bin_weight[6]-alfvar.corr_bin_weight[4] > 0.0
@@ -74,8 +74,8 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     # ---- !only compute the model and chi2 if the priors are >0.
     if (pr > tiny_number):
         # ---- !get a new model spectrum
-        mspec = getmodel_grid(npos, alfvar=alfvar)
-        #mspec = getmodel(npos, alfvar=alfvar)
+        #mspec = getmodel_grid(npos, alfvar=alfvar)
+        mspec = getmodel(npos, alfvar=alfvar)
         if np.isnan(mspec).any():
             return np.inf
     else:
@@ -138,6 +138,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
                 return np.inf
 
             func_val  += tchi2
+        
         
             if funit is True:
                 if (alfvar.fit_type == 0):

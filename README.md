@@ -6,7 +6,8 @@
 * use `python3 alf.py filename tag` to run
 * `setup` is parallelized and will pickle a large model array 
 * use global variable `use_keys` to specify parameters to fit
+* speed up by numba
 * packages required: 
-    - numpy, pickle, emcee, dynesty, schwimmbad
+    - numba, numpy, pickle, emcee, dynesty, schwimmbad
 
 

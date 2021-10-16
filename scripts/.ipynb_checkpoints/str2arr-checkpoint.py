@@ -2,7 +2,8 @@
 import math, numpy as np
 from numba import jit
 
-__all__ = ['str2arr', 'fill_param', 'get_default_keylist', 'get_default_arr']
+__all__ = ['str2arr', 'fill_param', 'get_default_keylist', 'get_default_arr', 
+           'get_default_value_usekeys', 'fill_param_lnprior']
 
 
 # ---------------------------------------------------------------- #
@@ -13,7 +14,7 @@ def get_default_arr():
                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                      0.0, 1.3, 2.3, -4.0, 10.1, 0.0,-5.5, 20.0, 
                      -4., 0.3,-5.0, -5.0, -5.0, -5.0, -5.0, -5.0,
-                     -5.5, 1.0, -8.5, 0.08, 0.0, 0.0, 0.0])
+                     -5.5, 1.0, -8.5, 0.08, 0.0, 0.0, 0.0])+1e-4
 
 # ---------------------------------------------------------------- #
 @jit(nopython=True)
@@ -29,6 +30,15 @@ def get_default_keylist():
     return key_list
 
 
+# ---------------------------------------------------------------- #
+def get_default_value_usekeys(usekeys):
+    outarr = np.empty(len(usekeys))
+    fullist = get_default_keylist()
+    fullarr = get_default_arr()
+    for i, ikey in enumerate(usekeys):
+        outarr[i] = fullarr[fullist.index(ikey)]
+    return outarr
+
 
 # ---------------------------------------------------------------- #
 class alfobj(object):
@@ -36,26 +46,18 @@ class alfobj(object):
         self.__dict__ = dict(zip(get_default_keylist(), get_default_arr()))
 
 # ---------------------------------------------------------------- #
-def str2arr(switch, instr=None, inarr=None, usekeys =None):
+def str2arr(switch, instr=None, inarr=None):
     """
-    routine to dump the information in the parameteter
-    structure (str) into an array (arr), or visa versa, depending
-    on the value of the switch
-
-    this is actually the location where the parameters to be fit
-    in the full model are specified.  If a parameter is left out
-    of this list (e.g., [Rb/H]) then it does not affect Chi^2
     - 1. str->arr
     - 2. arr->str
     """
-    if usekeys is None:
-        usekeys = get_default_keylist()
-        
+    
     if switch == 1 and instr is not None:
-        res = get_default_arr()
-        key_list = get_default_keylist()
+        alllist = get_default_keylist()
+        usekeys = [vi for vi in instr.__dict__.keys() if vi in alllist]
+        res = np.zeros(len(usekeys))
         for ikey in usekeys:
-            res[key_list.index(ikey)] = getattr(instr, ikey)
+            res[usekeys.index(ikey)] = getattr(instr, ikey)
         return res
 
 
@@ -86,3 +88,16 @@ def fill_param(inarr, usekeys):
         for ikey in usekeys:
             res[key_list.index(ikey)] = inarr[key_list.index(ikey)]
     return res
+
+
+# ---------------------------------------------------------------- #
+def fill_param_lnprior(inarr, usekeys):
+    key_list = get_default_keylist()
+    res = get_default_arr()
+    for i in range(len(usekeys)):
+        res[key_list.index(usekeys[i])] = inarr[i]
+    return res
+
+
+
+

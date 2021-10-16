@@ -51,7 +51,7 @@ def linterp(xin, yin, xout):
 
 
 # ---------------------------------------------------------------- #
-@jit(nopython=True)
+@jit(nopython=True,fastmath=True)
 def tsum(xin, yin):
     """
     !simple trapezoidal integration of tabulated function (xin,yin)

@@ -71,8 +71,9 @@ def lnprior(in_arr, nested=False):
     - GLOBAL VARIABLES:
         - global_all_priors: priors for all 46 parameter
     """
-    in_pos_arr = fill_param(in_arr, use_keys)
-    lnp = np.nansum([global_all_prior[i].lnp(in_pos_arr[i]) for i in range(in_pos_arr.size)])
+    in_pos_arr = fill_param_lnprior(in_arr, use_keys)
+    len_pos = len(in_pos_arr)
+    lnp = sum([global_all_prior[i].lnp(in_pos_arr[i]) for i in range(len_pos)])
     if nested and np.isfinite(lnp):
         return 0.0
     return lnp
@@ -84,7 +85,8 @@ def func_2min(inarr):
     only optimize the first 4 parameters before running the sampler
     """
     return func(global_alfvar, inarr, prhiarr=global_prhiarr,
-                prloarr=global_prloarr, usekeys = ['velz', 'sigma', 'logage', 'zh'])
+                prloarr=global_prloarr,
+                usekeys = ['velz', 'sigma', 'logage', 'zh', ])
 
 
 # -------------------------------------------------------- #
@@ -137,7 +139,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 50000    # -- length of chain burn-in
+    nburn = 20000    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
     print_mcmc = 1; print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
 
@@ -179,7 +181,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     alfvar.imf_type = 3
 
     # ---- are the data in the original observed frame?
-    alfvar.observed_frame = 1
+    alfvar.observed_frame = 0
 
     alfvar.mwimf = 0  #force a MW (Kroupa) IMF
 
@@ -354,31 +356,25 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     global_alfvar = copy.deepcopy(alfvar)
     global_prloarr = copy.deepcopy(prloarr)
     global_prhiarr = copy.deepcopy(prhiarr)
-        
-    
+
+
 
     # -------- optimize the first four parameters -------- #
-    prior_bounds = list(zip(global_prloarr[:4], global_prhiarr[:4]))
+    len_optimize = 4
+    prior_bounds = list(zip(global_prloarr[:len_optimize], global_prhiarr[:len_optimize]))
     print('prior_bounds:', prior_bounds)
     optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
                                           polish=False, updating='deferred', workers=-1)
     print('optimized parameters', optimize_res)
-
-    opos.velz = optimize_res.x[0]
-    opos.sigma = optimize_res.x[1]
-    opos.sigma2 = optimize_res.x[1]
-    opos.logage = optimize_res.x[2]
-    opos.zh = optimize_res.x[3]
-    oposarr = str2arr(switch=1, instr=opos)
 
     # -------- getting priors for the sampler -------- #
     global global_all_prior  # ---- note it's for all parameters
 
     # ---------------- update priors ----------------- #
     global_all_prior = [ClippedNormal(np.array(optimize_res.x)[i],
-                                      np.array([100, 50, 0.2, 0.2])[i],
-                                      global_prloarr[i], global_prhiarr[i]) for i in range(4)] + \
-                       [TopHat(global_prloarr[i+4], global_prhiarr[i+4]) for i in range(len(key_list)-4)]
+                                      np.array([200, 100, ]+[0.2,]*(len_optimize-2))[i],
+                                      global_prloarr[i], global_prhiarr[i]) for i in range(len_optimize)] + \
+                       [TopHat(global_prloarr[i+len_optimize], global_prhiarr[i+len_optimize]) for i in range(len(key_list)-len_optimize)]
 
     npar = len(use_keys)
     print('\nWe are going to fit ', npar, 'parameters\nThey are', use_keys)
@@ -388,19 +384,34 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     if run == 'emcee':
         print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
         tstart = time.time()
-        npar = len(use_keys)
+        #npar = len(use_keys)
         np.random.seed(42)
-        pos_emcee_in = np.empty((nwalkers, npar))
 
-        pos_emcee_in[:,:0] = optimize_res.x[0] + 10.0*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
-        for i in range(1, 4):
-            pos_emcee_in[:,:i] = optimize_res.x[0] + 0.1*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
+        pos_emcee_in = np.zeros((nwalkers, npar))
+        #pos_emcee_in = np.tile(get_default_value_usekeys(use_keys),(nwalkers,1))
+        pos_emcee_in[:,0] = optimize_res.x[0] + 10.0*(2.*np.random.rand(nwalkers, npar)[:,0]-1.0)
+        for i in range(1, len_optimize):
+            pos_emcee_in[:,i] = optimize_res.x[i] + 0.1*(2.*np.random.rand(nwalkers, npar)[:,i]-1.0)
 
         print('initial values of the first walker:\n', pos_emcee_in[0], '\n')
 
+        """
+        pool = MPIPool()
+        if not pool.is_master():
+            pool.wait()
+            sys.exit(0)
+
+        sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
+        sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
+        """
         with multiprocessing.Pool(ncpu) as pool:
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
-            state = sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True)
+            start = time.time()
+            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
+            end = time.time()
+            multi_time = end - start
+            print("Multiprocessing took {0:.1f} seconds".format(multi_time))
+        #pool.close()
 
         ndur = time.time() - tstart
         print('\n Total time for emcee {:.2f}min'.format(ndur/60))
@@ -414,7 +425,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     elif run == 'dynesty':
         # ---------------------------------------------------------------- #
         ndim = len(use_keys)
-        """
+
         with multiprocessing.Pool(ncpu) as pool:
             dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, ndim, nlive = int(50*ndim),
                                              sample='rslice', bootstrap=0,pool=pool, queue_size = ncpu)
@@ -427,7 +438,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
         pool.close()
         results = dsampler.results
         pickle.dump(results, open('{0}results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
-        """
+
         results = pickle.load(open('{0}results/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
         # ---- post process ---- #
         calm2l_dynesty(results, alfvar, use_keys=use_keys, outname=filename+'_'+tag, ncpu=ncpu)
@@ -448,13 +459,16 @@ if __name__ == "__main__":
     tag = ''
     if n_argv >= 3:
         tag = argv_l[2]
-    run = 'dynesty'
+    run = 'emcee'
     print('\nrunning alf:')
     print('input spectrum:', filename+'.dat')
     print('sampler =',run)
 
-    dir0 = '/Users/menggu/work/git/Meng-astro/alf_src_study/python_alf/alfpy/pickle/'
-    alf(filename, tag, model_arr = dir0+'alfvar_sspgrid_ldss3_dr269_n1600_Re8_wave6e.p',
+    dir0 = '{0}/pickle/'.format(os.environ['ALFPY_HOME'])
+    model_arr = dir0 + 'alfvar_sspgrid_zsol_a+0.3.p',
+    alf(filename, tag,
+        #model_arr = dir0+'alfvar_sspgrid_ldss3_dr269_n1700_Re8_wave6e.p',
+        model_arr = dir0 + 'alfvar_sspgrid_zsol_a+0.3.p',
         run=run, ncpu=ncpu)
 
 

@@ -45,7 +45,7 @@ class ALFPARAM(object):
         self.jitter=1.0; self.imf3 = 0.08
         self.logsky = -4.0; self.imf4 = 4.0
         self.h3 = 0.0; self.h4=0.0
-        self.chi2 = 1e33 
+        #self.chi2 = 1e33 
 
         
         
@@ -131,8 +131,8 @@ class ALFSSP(object):
         
 
 # ---------------------------------------------------------------- # 
-alftdata_param = ['lam', 'flx', 'err', 'wgt', 'ires', 'lam0', 'sky']
-alftdata_type = [(i, numba.float64[:]) for i in alftdata_param]
+alftdata_param = np.array(['lam', 'flx', 'err', 'wgt', 'ires', 'lam0', 'sky'])
+alftdata_type = np.array([(i, numba.float64[:]) for i in alftdata_param])
 #@jitclass(alftdata_type)
 class ALFTDATA(object):
     def __init__(self, ndat):
@@ -146,8 +146,8 @@ class ALFTDATA(object):
         
         
 # ---------------------------------------------------------------- # 
-alfidata_param = ['indx', 'err']
-alfidata_type = [(i, numba.float64[:]) for i in alfidata_param]
+alfidata_param = np.array(['indx', 'err'])
+alfidata_type = np.array([(i, numba.float64[:]) for i in alfidata_param])
 #@jitclass(alfidata_type)
 class ALFIDATA(object):
     def __init__(self, nindx):

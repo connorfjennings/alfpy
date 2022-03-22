@@ -1,13 +1,11 @@
-#from linterp import * 
 import math, numpy as np
 from numba import jit
 import scipy.constants
-#from alf_constants import *
 
 __all__ = ['velbroad']
 
 mypi   = scipy.constants.pi  # pi
-clight = scipy.constants.speed_of_light*1e2  # speed of light (cm/s)
+clight = scipy.constants.speed_of_light*100  # speed of light (cm/s)
 
 # ------------------------------------------------------------------------- 
 @jit(nopython=True,fastmath=True)
@@ -25,13 +23,10 @@ def find_nearest(array,value):
 
 #-------------------------------------------------------------------------!
 @jit(nopython=True,fastmath=True)
-def fast_smooth_part(lam, inspec, minl, maxl, h3, h4, sigmal, sigmal_arr=None):
+def fast_smooth1_part(lam, inspec, minl, maxl, h3, h4, sigmal, sigmal_arr=None):
     
-    #mypi = 3.14159265
-    #clight = 29979245800.0
     m = 6.0
-    nn = len(lam)
-            
+    nn = len(lam)           
     if sigmal_arr is not None:
         xmax = lam * (m*sigmal_arr/clight*1e5+1.0)
     else:
@@ -65,8 +60,6 @@ def fast_smooth_part(lam, inspec, minl, maxl, h3, h4, sigmal, sigmal_arr=None):
 @jit(nopython=True,fastmath=True)  
 def fast_smooth2_part(lam, inspec, ind1, ind2, sigma):
     m = 6.0
-    #mypi = 3.14159265
-    #clight = 29979245800.0
     n2 = ind2-ind1
     dlstep = (math.log(lam[ind2])-math.log(lam[ind1]))/n2
     lnlam = np.arange(n2)*dlstep+math.log(lam[ind1])
@@ -83,12 +76,13 @@ def fast_smooth2_part(lam, inspec, ind1, ind2, sigma):
             
         nspec[grange: n2-grange] = np.array([(psf*tspec[i-grange:i+grange+1]).sum() for i in range(grange, n2-grange)])
         outspec[ind1:ind2] = np.interp(x=lam[ind1:ind2], xp=np.exp(lnlam), fp=nspec)
+        # scipy.interpolate.interp1d not supported by numba
             
     return outspec
 
 
 #-------------------------------------------------------------------------!
-@jit(nopython=True,fastmath=True)  
+@jit(nopython=True,fastmath=True) 
 def velbroad(lam, spec, sigma, minl= None, maxl= None, 
              ires=None, velbroad_simple = 1):
     """
@@ -108,14 +102,12 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
         spec
     """
     if minl is None :
-        minl = np.nanmin(lam)
+        minl = lam.min()
     if maxl is None:
-        maxl = np.nanmax(lam)    
+        maxl = lam.max()   
     m = 6.0
     nn = len(lam)
     h3, h4 = 0., 0.
-    #mypi = 3.14159265
-    #clight = 29979245800.0
     
     # ---- no broadening for small sigma
     if sigma <= 10.:
@@ -138,10 +130,10 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
                 
         if (ires is not None) and len(ires) == nn:
             sigmal_arr = np.copy(ires)
-            spec = fast_smooth_part(lam, spec, minl, maxl, h3, h4, sigmal, sigmal_arr=sigmal_arr)
+            spec = fast_smooth1_part(lam, spec, minl, maxl, h3, h4, sigmal, sigmal_arr=sigmal_arr)
                
         else:
-            spec = fast_smooth_part(lam, spec, minl, maxl, h3, h4, sigmal)
+            spec = fast_smooth1_part(lam, spec, minl, maxl, h3, h4, sigmal)
 
         
     # ---- !compute smoothing the correct way (convolution in dloglambda)

@@ -5,13 +5,13 @@ from getmodel import getmodel
 from set_pinit_priors import *
 from contnormspec import *
 from alf_constants import *
-from getmodel_gridinterp import *
+from tofit_parameters import tofit_params
 
-__all__ = ['func',]
+__all__ = ['func']
 
 # ---------------------------------------------------------------- #
-def func(alfvar, in_posarr, prhiarr = None, prloarr=None, 
-         funit=False, usekeys = None):
+def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None, 
+         funit=False):
     """  
     !routine to get a new model and compute chi^2.  Optionally,
     !the model spectrum is returned (spec).  The model priors
@@ -32,8 +32,6 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     data = alfvar.data
     l1, l2 = alfvar.l1, alfvar.l2    
     
-    if usekeys is None:
-        usekeys = get_default_keylist()    
     # ---------------------------------------------------------------- #    
     if prhiarr is None or prloarr is None:
         _, prlo, prhi = set_pinit_priors(alfvar)
@@ -57,7 +55,7 @@ def func(alfvar, in_posarr, prhiarr = None, prloarr=None,
     # ---- !the IMF cannot be convex (U shaped)
     if (alfvar.imf_type == 4 and alfvar.nonpimf_regularize == 1):
         if np.logical_and(npos.imf2 - npos.imf1+ alfvar.corr_bin_weight[2]-alfvar.corr_bin_weight[0] < 0.0,
-                          npos.imf3 - pos.imf2 + alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] > 0.0) :
+                          npos.imf3 - npos.imf2 + alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] > 0.0) :
             
             pr=0.0
             

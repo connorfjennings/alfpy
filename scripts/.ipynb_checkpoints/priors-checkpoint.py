@@ -1,11 +1,6 @@
-# goal: use dynesty
-
 import numpy as np
 import scipy.stats 
-from str2arr import *
-from alf_constants import *
-from set_pinit_priors import *
-
+#from alf_constants import *
 __all__ = ['TopHat', 'ClippedNormal']
 
 

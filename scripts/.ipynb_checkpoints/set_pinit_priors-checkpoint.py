@@ -37,7 +37,8 @@ def set_pinit_priors(alfvar, velz=None):
                 'cuh': (0.4, -0.2), 'srh': (0.4, -0.2), 'bah': (0.4, -0.2),
                 'euh': (0.4, -0.2), 'teff': (80., -40.), 'logfy':(2., -4.),
                 'fy_logage': (0.3, 0.), 'logm7g': (1., -4.), 'hotteff':(5., 15.),
-                'loghot':(1., -4.), 'chi2':(0, 1e33), 'sigma':(100., 100.),
+                'loghot':(1., -4.), #'chi2':(0, 1e33), 
+                'sigma':(100., 100.),
                 'sigma2':(100., 100.), 'velz2':(10., -5.), 'logtrans':(4., -4),
                 'logemline_h': (2., -4), 'logemline_oii': (2., -4), 'logemline_oiii': (2., -4),
                 'logemline_ni': (2., -4), 'logemline_nii': (2., -4), 'logemline_sii': (2., -4),
@@ -95,10 +96,10 @@ def set_pinit_priors(alfvar, velz=None):
                   'vh': (-0.3, 0.5), 'crh': (-0.3, 0.5), 'mnh': (-0.3, 0.5),
                   'coh': (-0.3, 0.5), 'nih': (-0.3, 0.5), 'cuh': (-0.3, 0.5),
                   'srh': (-0.3, 0.5), 'bah': (-0.6, 0.5), 'euh': (-0.5, 0.5),
-                  'teff': (-2., 2.), 'logfy':(-6., -0.5), 'fy_logage': (math.log10(0.5), math.log10(3.0)),
-                  'logm7g': (-6., -5.), 'hotteff':(8., 30.), 'loghot':(-8.0, -1.0),
-                  'sigma':(10., 1e3), 'sigma2':(10., 1e3), 'chi2':(0, 2e33),
-                  'velz':(-1e3, 2e4), 'velz2':(-1e3, 1e3),
+                  'teff': (-50., 50.), 'logfy':(-6.0, -0.1), 'fy_logage': (math.log10(0.5), math.log10(3.0)),
+                  'logm7g': (-6., -1.), 'hotteff':(8., 30.), 'loghot':(-6.0, -1.0),
+                  'sigma':(10., 1e3), 'sigma2':(10., 1e3), #'chi2':(0, 2e33),
+                  'velz':(-1e3, 1e4), 'velz2':(-1e3, 1e3),
                   'logtrans':(-6., 1.0), 'logemline_h': (-6., 1.0), 'logemline_oii': (-6., 1.0),
                   'logemline_oiii': (-6., 1.0),'logemline_ni': (-6., 1.0), 'logemline_nii': (-6., 1.0),
                   'logemline_sii': (-6., 1.0), 'jitter': (0.1, 10.0), 'logsky':(-9., 2.0), 'h3':(-0.4, 0.4), 'h4':(-0.4, 0.4)
@@ -128,11 +129,11 @@ def set_pinit_priors(alfvar, velz=None):
         prhi.imf2 = 3.5
 
     elif imf_type == 2:
-        prlo.imf2 = -5.0
+        prlo.imf2 = 0.08
         prhi.imf2 = 0.5
 
     elif imf_type == 4:
-        prlo.imf2 = -4.0
+        prlo.imf2 = -5.0
         prhi.imf2 = 3.0
 
     prlo.imf4 = -5.0

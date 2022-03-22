@@ -1,6 +1,6 @@
 # alfpy
 * under test 
-* fitting with emcee works, but slow
+* fitting with emcee and dynesty works, but still slow
 * scripts in `https://github.com/cconroy20/alf/tree/master/src' 
   are (almost) directly translated into python
 * requires ALF_HOME and as alf, all models in alf/infiles/ are required

@@ -1,11 +1,10 @@
 import numpy as np
 from linterp import *
 from str2arr import *
-from getmodel import getmodel
+from getmodel import getmodel, fast_np_power
 from set_pinit_priors import *
 from contnormspec import *
 from alf_constants import *
-from tofit_parameters import tofit_params
 
 __all__ = ['func']
 
@@ -54,18 +53,17 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
     # ---- !regularize the non-parametric IMF
     # ---- !the IMF cannot be convex (U shaped)
     if (alfvar.imf_type == 4 and alfvar.nonpimf_regularize == 1):
-        if np.logical_and(npos.imf2 - npos.imf1+ alfvar.corr_bin_weight[2]-alfvar.corr_bin_weight[0] < 0.0,
-                          npos.imf3 - npos.imf2 + alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] > 0.0) :
+        if (npos.imf2 - npos.imf1+ alfvar.corr_bin_weight[2]-alfvar.corr_bin_weight[0] < 0.0) & \
+        (npos.imf3 - npos.imf2 + alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] > 0.0) :
             
             pr=0.0
             
-        if np.logical_and(npos.imf3-npos.imf2+alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] < 0.0,
-                          npos.imf4-npos.imf3+alfvar.corr_bin_weight[6]-alfvar.corr_bin_weight[4] > 0.0
-                         ):
+        if (npos.imf3-npos.imf2+alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] < 0.0) & \
+        (npos.imf4-npos.imf3+alfvar.corr_bin_weight[6]-alfvar.corr_bin_weight[4] > 0.0):
              pr = 0.0
             
-        if np.logical_and(npos.imf4-npos.imf3+alfvar.corr_bin_weight[6]-alfvar.corr_bin_weight[4] < 0.0,
-                          0.0-npos.imf4+alfvar.corr_bin_weight[8]-alfvar.corr_bin_weight[6] > 0.0): 
+        if (npos.imf4-npos.imf3+alfvar.corr_bin_weight[6]-alfvar.corr_bin_weight[4] < 0.0) & \
+        (0.0-npos.imf4+alfvar.corr_bin_weight[8]-alfvar.corr_bin_weight[6] > 0.0): 
              pr = 0.0
 
 
@@ -112,16 +110,16 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
             mflx  = zmspec * poly
             # ---- !compute chi^2 ---- #
             ind = np.isfinite(data.flx[i1:i2])
-            flx_i12 = np.copy(data.flx[i1:i2][ind])
-            err_i12 = np.copy(data.err[i1:i2][ind])
-            sky_i12 = np.copy(data.sky[i1:i2][ind])
-            lam_i12 = np.copy(data.lam[i1:i2][ind])
-            mflx_i12 = np.copy(mflx[i1:i2][ind])
-            poly_i12 = np.copy(poly[i1:i2][ind])
+            flx_i12 = data.flx[i1:i2][ind].copy()
+            err_i12 = data.err[i1:i2][ind].copy()
+            sky_i12 = data.sky[i1:i2][ind].copy()
+            lam_i12 = data.lam[i1:i2][ind].copy()
+            mflx_i12 = mflx[i1:i2][ind].copy()
+            poly_i12 = poly[i1:i2][ind].copy()
                 
             if alfvar.fit_type == 0:
                 # ---- !include jitter term
-                sky_term = np.square(np.power(10,npos.logsky)*sky_i12)
+                sky_term = np.square(fast_np_power(10,npos.logsky)*sky_i12)
                 err_term = np.square(err_i12*npos.jitter)
                 tocal_1 = np.square(flx_i12-mflx_i12)/(err_term + sky_term)
                 tocal_2 = np.log(2*mypi*(err_term + sky_term)) 

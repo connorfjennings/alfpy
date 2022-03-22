@@ -7,6 +7,12 @@ __all__ = ['velbroad']
 mypi   = scipy.constants.pi  # pi
 clight = scipy.constants.speed_of_light*100  # speed of light (cm/s)
 
+# -------------------------------------------------------------------------
+@jit(nopython=True, fastmath=True)
+def fast_np_power(x1, x2):
+    # ---- only slightly faster ---- #
+    return x1**x2
+
 # ------------------------------------------------------------------------- 
 @jit(nopython=True,fastmath=True)
 def find_nearest(array,value):
@@ -48,8 +54,8 @@ def fast_smooth1_part(lam, inspec, minl, maxl, h3, h4, sigmal, sigmal_arr=None):
             func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-sq_temr/2) 
         else:
             func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-sq_temr/2) * \
-                    (1 + h3*(2*np.power(temr,3)-3*temr)/math.sqrt(3.) + \
-                    h4*(4*np.power(temr,4)-12*sq_temr+3)/math.sqrt(24.) )
+                    (1 + h3*(2*fast_np_power(temr,3)-3*temr)/math.sqrt(3.) + \
+                    h4*(4*fast_np_power(temr,4)-12*sq_temr+3)/math.sqrt(24.) )
                 
         func /= np.trapz(y=func, x=vel) #tsum(vel, func)
         outspec[i] = np.trapz(y=func*inspec[il:ih], x=vel)   

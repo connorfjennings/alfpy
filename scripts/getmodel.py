@@ -11,6 +11,12 @@ __all__ = ['getmodel']
 
 # ---------------------------------------------------------------- #    
 @jit(nopython=True, fastmath=True)
+def fast_np_power(x1, x2):
+    # ---- only slightly faster ---- #
+    return x1**x2
+
+# ---------------------------------------------------------------- #    
+@jit(nopython=True, fastmath=True)
 def get_dv(ingrid, inval, maxv, minv, maxind, minind):
     inind = max(min(locate(ingrid, inval),maxind),minind)  
     return inind, max(min((inval - ingrid[inind])/(ingrid[inind+1]-ingrid[inind]), maxv), minv)
@@ -56,7 +62,7 @@ def cal_logsspm(inarr, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt):
                    dx1*dx2*(1-dx3)*inarr[:,vv1+1,vv2+1,vt,vv3,vm3] + 
                    dx1*dx2*dx3*inarr[:,vv1+1,vv2+1,vt,vv3+1,vm3])
         
-        return np.power(10, dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
+        return fast_np_power(10, dt*dm3*tmp1 +(1.-dt)*dm3*tmp2 + dt*(1.-dm3)*tmp3 +(1.-dt)*(1.-dm3)*tmp4 )
 
     
 # ---------------------------------------------------------------- #  
@@ -82,9 +88,31 @@ def cal_logssp(inarr, dx1, dx2, dt, dm, vv1, vv2, vm, vt):
                    (1-dx1)*dx2*inarr[:,vv1,vv2+1,vt,vm] + 
                    dx1*dx2*inarr[:,vv1+1,vv2+1,vt,vm])
         
-        return np.power(10,dt*dm*tmp1 + (1.-dt)*dm*tmp2 + dt*(1.-dm)*tmp3 +(1.-dt)*(1.-dm)*tmp4 )
+        return fast_np_power(10,dt*dm*tmp1 + (1.-dt)*dm*tmp2 + dt*(1.-dm)*tmp3 +(1.-dt)*(1.-dm)*tmp4 )
     
 
+    
+# ---------------------------------------------------------------- #
+@jit(nopython=True, fastmath=True)
+def tmp_add_em(i_norm, i_em, p_velz2, p_sigma2, i_lam):
+    ve   = i_em/(1+p_velz2/clight*1e5)
+    lsig = max(ve*p_sigma2/clight*1e5, 1.0)  #min dlam=1.0A
+    return i_norm * np.exp(-(i_lam-ve)**2/lsig**2/2.0)    
+
+
+# ---------------------------------------------------------------- #
+@jit(nopython=True, fastmath=True)
+def tmp_fy(dh, dm, vh, vm, ingrid, inspec, inarr_m7g, in_loghot, in_logm7g):
+    #!add a hot star (interpolate in hot_teff and [Z/H]
+    tmp = (dh*dm*ingrid[:,vh+1,vm+1] + (1-dh)*dm*ingrid[:,vh,vm+1] + dh*(1-dm)*ingrid[:,vh+1,vm] + (1-dh)*(1-dm)*ingrid[:,vh,vm])  
+
+    fy   = max(min(10**in_loghot, 1.0), 0.0)
+    inspec = inspec + fy*tmp
+
+    # ---- add in an M7 giant
+    fy   = max(min(10**in_logm7g, 1.0), 0.0)
+    inspec = (1.0-fy)*inspec + fy*inarr_m7g
+    return inspec
 # ---------------------------------------------------------------- #
 
 def getmodel(pos, alfvar, mw = 0):
@@ -127,16 +155,15 @@ def getmodel(pos, alfvar, mw = 0):
         else:
             # ---- two-part power-law for IMF=1,3
             vv2, dx2 = get_dv(sspgrid.imfx2, pos.imf2, 1.0, 0.0, nimf-2, 0)
-
-            
-        if alfvar.imf_type == 2 or alfvar.imf_type == 3:
+  
+        if alfvar.imf_type in [2, 3]:
             vv3, dx3 = get_dv(sspgrid.imfx3, pos.imf3, 1.0, 0.0, alfvar.nmcut-2, 0)           
 
-        if alfvar.imf_type == 2 or alfvar.imf_type == 3:
+        if alfvar.imf_type in [2, 3]:
             vm3, dm3 = get_dv(sspgrid.logzgrid2, pos.zh, 1.5, -1.0, nzmet3-2,0)
             spec = cal_logsspm(sspgrid.logsspm, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt)
             
-        elif alfvar.imf_type==0 or alfvar.imf_type==1:
+        elif alfvar.imf_type in [0, 1]:
             spec = cal_logssp(sspgrid.logssp, dx1, dx2, dt, dm, vv1, vv2, vm, vt)
             
         elif alfvar.imf_type == 4:
@@ -152,16 +179,6 @@ def getmodel(pos, alfvar, mw = 0):
             imfw[7-1] = 10**pos.imf4
             imfw[8-1] = 10**((alfvar.imf5+pos.imf4)/2.)
             imfw[9-1] = 10**alfvar.imf5
-
-
-            #tmp1 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm+1]) for i in range(alfvar.nimfnp)]), 
-            #              axis=0)
-            #tmp2 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm+1]) for i in range(alfvar.nimfnp)]), 
-            #              axis=0)
-            #tmp3 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm]) for i in range(alfvar.nimfnp)]), 
-            #              axis=0)
-            #tmp4 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm]) for i in range(alfvar.nimfnp)]), 
-            #              axis=0)
 
 
             lam_length = len(sspgrid.lam)
@@ -209,7 +226,7 @@ def getmodel(pos, alfvar, mw = 0):
 
     else:
         # ---- compute a Kroupa IMF, line196
-        spec = np.power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
+        spec = fast_np_power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
                         (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
                         dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
                         (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
@@ -285,35 +302,11 @@ def getmodel(pos, alfvar, mw = 0):
             
             
         elif pos.nah >= 0.3 and pos.nah < 0.6:
-            
-            #tmpr = (dr*dm2*sspgrid.nap[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + \
-            #        (1-dr)*dm2*sspgrid.nap[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + \
-            #        dr*(1-dm2)*sspgrid.nap[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + \
-            #        (1-dr)*(1-dm2)*sspgrid.nap[:,vr,vm2]/sspgrid.solar[:,vr,vm2])
-
-            #tmp = (dr*dm2*(sspgrid.nap6[:,vr+1,vm2+1]-sspgrid.nap[:,vr+1,vm2+1])/sspgrid.solar[:,vr+1,vm2+1]+ \
-            #       (1-dr)*dm2*(sspgrid.nap6[:,vr,vm2+1]-sspgrid.nap[:,vr,vm2+1])/sspgrid.solar[:,vr,vm2+1]+ \
-            #       dr*(1-dm2)*(sspgrid.nap6[:,vr+1,vm2]-sspgrid.nap[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+ \
-            #       (1-dr)*(1-dm2)*(sspgrid.nap6[:,vr,vm2]-sspgrid.nap[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
-
-            #spec *= tmpr+tmp*(pos.nah-0.3)/0.3
             spec *= add_na_03(pos.nah, 0.3, dr,vr,dm2,vm2, 
                               sspgrid.solar, sspgrid.nap, sspgrid.nap6)
 
                    
         elif pos.nah >= 0.6:
-
-            #tmpr = (dr*dm2*sspgrid.nap6[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + 
-            #(1-dr)*dm2*sspgrid.nap6[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + 
-            #dr*(1-dm2)*sspgrid.nap6[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + 
-            #(1-dr)*(1-dm2)*sspgrid.nap6[:,vr,vm2]/sspgrid.solar[:,vr,vm2])
-
-            #tmp = (dr*dm2*(sspgrid.nap9[:,vr+1,vm2+1]-sspgrid.nap6[:,vr+1,vm2+1])/sspgrid.solar[:,vr+1,vm2+1] + 
-            #       (1-dr)*dm2*(sspgrid.nap9[:,vr,vm2+1]-sspgrid.nap6[:,vr,vm2+1])/sspgrid.solar[:,vr,vm2+1]+ 
-            #       dr*(1-dm2)*(sspgrid.nap9[:,vr+1,vm2]-sspgrid.nap6[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+
-            #       (1-dr)*(1-dm2)*(sspgrid.nap9[:,vr,vm2]-sspgrid.nap6[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
-
-            #spec *= tmpr+tmp*(pos.nah-0.6)/0.6
             spec *= add_na_03(pos.nah, 0.6, dr,vr,dm2,vm2, 
                               sspgrid.solar, sspgrid.nap6, sspgrid.nap9)
 
@@ -326,21 +319,25 @@ def getmodel(pos, alfvar, mw = 0):
                             sspgrid.solar, sspgrid.teffp, sspgrid.teffm)
          
         # ---- add a hot star (interpolate in hot_teff and [Z/H]
-        vh   = max(min(locate(sspgrid.teffarrhot, pos.hotteff), alfvar.nhot-2), 0)
-        dh   = (pos.hotteff-sspgrid.teffarrhot[vh])/(sspgrid.teffarrhot[vh+1]-sspgrid.teffarrhot[vh])
+        #vh   = max(min(locate(sspgrid.teffarrhot, pos.hotteff), alfvar.nhot-2), 0)
+        #dh   = (pos.hotteff-sspgrid.teffarrhot[vh])/(sspgrid.teffarrhot[vh+1]-sspgrid.teffarrhot[vh])
+        vh, dh = get_dv(sspgrid.teffarrhot, pos.hotteff, np.nan, np.nan, alfvar.nhot-2, 0)
         
-        tmp  = (dh*dm*sspgrid.hotspec[:,vh+1,vm+1] + 
-               (1-dh)*dm*sspgrid.hotspec[:,vh,vm+1] + 
-               dh*(1-dm)*sspgrid.hotspec[:,vh+1,vm] + 
-               (1-dh)*(1-dm)*sspgrid.hotspec[:,vh,vm])
+        spec = tmp_fy(dh, dm, vh, vm, sspgrid.hotspec, 
+                      spec, sspgrid.m7g, pos.loghot, pos.logm7g)
+        
+        #tmp  = (dh*dm*sspgrid.hotspec[:,vh+1,vm+1] + 
+        #       (1-dh)*dm*sspgrid.hotspec[:,vh,vm+1] + 
+        #       dh*(1-dm)*sspgrid.hotspec[:,vh+1,vm] + 
+        #       (1-dh)*(1-dm)*sspgrid.hotspec[:,vh,vm])
+        #tmp = tmp_hotstar(dh, dm, vh, vm, sspgrid.hotspec)
 
-        fy   = max(min(10**pos.loghot, 1.0), 0.0)
-        #spec = (1-fy)*spec + fy*tmp
-        spec = spec + fy*tmp
+        #fy   = max(min(10**pos.loghot, 1.0), 0.0)
+        #spec = spec + fy*tmp
 
-        # ---- add in an M7 giant
-        fy   = max(min(10**pos.logm7g, 1.0), 0.0)
-        spec = (1.0-fy)*spec + fy*sspgrid.m7g
+        ## ---- add in an M7 giant
+        #fy   = max(min(10**pos.logm7g, 1.0), 0.0)
+        #spec = (1.0-fy)*spec + fy*sspgrid.m7g
 
         # ---- vary [K/H] ---- #
         spec *= add_response(pos.kh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.kp)
@@ -381,9 +378,10 @@ def getmodel(pos, alfvar, mw = 0):
             for i in range(alfvar.neml):
                 # ---- allow the em lines to be offset in velocity from the continuum
                 # ---- NB: velz2 is a *relative* shift between continuum and lines
-                ve   = alfvar.emlines[i]/(1+pos.velz2/clight*1e5)
-                lsig = max(ve*pos.sigma2/clight*1e5, 1.0)  #min dlam=1.0A
-                spec += emnormall[i] * np.exp(-(sspgrid.lam-ve)**2/lsig**2/2.0)
+                #ve   = alfvar.emlines[i]/(1+pos.velz2/clight*1e5)
+                #lsig = max(ve*pos.sigma2/clight*1e5, 1.0)  #min dlam=1.0A
+                #spec += emnormall[i] * np.exp(-(sspgrid.lam-ve)**2/lsig**2/2.0)
+                spec += tmp_add_em(emnormall[i], alfvar.emlines[i], pos.velz2, pos.sigma2, sspgrid.lam)
 
     
     # velocity broaden the model       
@@ -391,7 +389,9 @@ def getmodel(pos, alfvar, mw = 0):
         if alfvar.fit_hermite == 1:
             hermite[0] = pos.h3
             hermite[1] = pos.h4
-            spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], hermite, velbroad_simple=1)
+            spec = velbroad(sspgrid.lam, spec, pos.sigma, 
+                            alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
+                            hermite, velbroad_simple=1)
             
         else:
             spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], velbroad_simple = 0)
@@ -404,8 +404,8 @@ def getmodel(pos, alfvar, mw = 0):
         tmp_ltrans     = sspgrid.lam / (1+pos.velz/clight*1e5)
         tmp_ftrans_h2o = linterp(xin=tmp_ltrans, yin=sspgrid.atm_trans_h2o, xout=sspgrid.lam)
         tmp_ftrans_o2  = linterp(xin=tmp_ltrans, yin=sspgrid.atm_trans_o2, xout=sspgrid.lam)
-        spec = spec*(1+(tmp_ftrans_h2o-1)*10**pos.logtrans)
-        spec = spec*(1+(tmp_ftrans_o2-1)*10**pos.logtrans)
+        spec = spec*(1+(tmp_ftrans_h2o-1)*fast_np_power(10, pos.logtrans))
+        spec = spec*(1+(tmp_ftrans_o2-1)*fast_np_power(10, pos.logtrans))
 
     # ---- apply a template error function
     if alfvar.apply_temperrfcn==1:

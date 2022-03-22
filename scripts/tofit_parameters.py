@@ -1,69 +1,60 @@
-# ============================ #
-# edit this file to specify
-# parameters included in the
-# fitting
-# ============================ #
-
-
-# ==== parameters to fit ==== #
-class tofit_param(object):
-    def __init__(self, fit, defval):
-        self.fit = fit
-        self.default_val = defval
-
-
-# ==== parameters to fit ==== #
+# ==================================== #
+# edit this file to specify parameters 
+# included in the fitting
+# ==================================== #
+# ======== parameters to fit ========= #
+# - (included or not, default value) - #
 tofit_params = {
     # -------------------------------- #
-    'velz':  tofit_param(True, 0.0), #0
-    'sigma': tofit_param(True, 11.0), #1
-    'logage': tofit_param(True, 1.0), #2
-    'zh': tofit_param(True, 0.0), #3
+    'velz':  (True, 0.0), #0
+    'sigma': (True, 11.0), 
+    'logage': (True, 1.0), 
+    'zh': (True, 0.0), 
     # -------------------------------- #
-    'feh': tofit_param(True, 0.0), #4
-    'ah': tofit_param(True, 0.0), #5
-    'ch': tofit_param(True, 0.0), #6
-    'nh': tofit_param(True, 0.0), #7
-    'nah': tofit_param(True, 0.0), #8
-    'mgh': tofit_param(True, 0.0), #9
-    'sih': tofit_param(True, 0.0),
-    'kh': tofit_param(True, 0.0),
-    'cah': tofit_param(True, 0.0),
-    'tih': tofit_param(True, 0.0), #13
+    'feh': (True, 0.0), #4
+    'ah': (True, 0.0), 
+    'ch': (True, 0.0), 
+    'nh': (True, 0.0), 
+    'nah': (True, 0.5), 
+    'mgh': (True, 0.0), 
+    'sih': (True, 0.0),
+    'kh': (True, 0.0),
+    'cah': (True, 0.0),
+    'tih': (True, 0.0), 
     # -------------------------------- #
-    'vh': tofit_param(True, 0.0),
-    'crh': tofit_param(True, 0.0),
-    'mnh': tofit_param(True, 0.0),
-    'coh': tofit_param(True, 0.0),
-    'nih': tofit_param(True, 0.0),
-    'cuh': tofit_param(True, 0.0),
-    'srh': tofit_param(True, 0.0),
-    'bah': tofit_param(True, 0.0),
-    'euh': tofit_param(True, 0.0),
+    'vh': (False, 0.0), #14
+    'crh': (False, 0.0),
+    'mnh': (False, 0.0),
+    'coh': (False, 0.0),
+    'nih': (False, 0.0),
+    'cuh': (False, 0.0),
+    'srh': (False, 0.0),
+    'bah': (False, 0.0),
+    'euh': (False, 0.0),
     # -------------------------------- #
-    'teff': tofit_param(False, 0.0),
-    'imf1': tofit_param(True, 1.3), #24
-    'imf2': tofit_param(True, 2.3), #25
-    'logfy': tofit_param(True, -5.9), #26
-    'sigma2': tofit_param(True, 10.1),
-    'velz2': tofit_param(True, 0.0),
-    'logm7g': tofit_param(True, -5.5), #29
-    'hotteff': tofit_param(True, 15.0),
-    'loghot': tofit_param(True, -4.0),
-    'fy_logage': tofit_param(True, -0.30),
+    'teff': (False, 0.0), #23
+    'imf1': (True, 1.3), 
+    'imf2': (True, 2.3), 
+    'logfy': (True, -5.9), 
+    'sigma2': (True, 10.1),
+    'velz2': (True, 0.0),
+    'logm7g': (True, -5.5), 
+    'hotteff': (True, 20.0),
+    'loghot': (True, -4.0),
+    'fy_logage': (True, 0.3),
     # -------------------------------- #
-    'logemline_h': tofit_param(True, -4.0),
-    'logemline_oii': tofit_param(True, -4.0),
-    'logemline_oiii': tofit_param(True, -4.0),
-    'logemline_sii': tofit_param(True, -4.0),
-    'logemline_ni': tofit_param(True, -4.0),
-    'logemline_nii': tofit_param(True, -4.0),
+    'logemline_h': (False, -6.0+1e-5), #33
+    'logemline_oii': (False, -6.0+1e-5),
+    'logemline_oiii': (False, -6.0+1e-5),
+    'logemline_sii': (False, -6.0+1e-5),
+    'logemline_ni': (False, -6.0+1e-5),
+    'logemline_nii': (False, -6.0+1e-5), 
     # -------------------------------- #
-    'logtrans':  tofit_param(False, -5.9), #39
-    'jitter': tofit_param(True, 1.0),
-    'logsky': tofit_param(False, -8.9), #41
-    'imf3': tofit_param(False, 0.08+1e-5),
-    'imf4': tofit_param(False, 0.0), #43
-    'h3': tofit_param(False, 0.0),
-    'h4': tofit_param(False, 0.0),
+    'logtrans':  (False, -5.9), #39 
+    'jitter': (True, 1.0), 
+    'logsky': (False, -8.9), 
+    'imf3': (False, 0.08+1e-5), 
+    'imf4': (False, 0.0), 
+    'h3': (False, 0.0),
+    'h4': (False, 0.0),
 }

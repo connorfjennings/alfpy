@@ -2,7 +2,7 @@ import numpy as np
 #from alf_vars import *
 from numba import jit
 
-@jit(nopython=True)
+@jit(nopython=True, fastmath=True)
 def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
     """
     !compute mass in stars and remnants (normalized to 1 Msun at t=0)

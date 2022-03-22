@@ -1,21 +1,19 @@
-#from alf_vars import *
 import math, numpy as np
-from numba import jit
 from tofit_parameters import tofit_params
 
 __all__ = ['str2arr', 'fill_param']
+
 tofit_params_keys = list(tofit_params.keys())
-
-
 # ---------------------------------------------------------------- #
 class alfobj(object):
     def __init__(self, inarr=None):
         if inarr is None:
             for ikey in tofit_params_keys:
-                self.__dict__[ikey] = tofit_params[ikey].default_val
+                self.__dict__[ikey] = tofit_params[ikey][1]
         else:
             for i_, ikey_ in enumerate(tofit_params_keys):
                 self.__dict__[ikey_] = inarr[i_]            
+        
         
 # ---------------------------------------------------------------- #
 def str2arr(switch, instr=None, inarr=None):
@@ -35,7 +33,7 @@ def fill_param(inarr, usekeys):
     """
     fill the parameters not included in fitting with default values
     """
-    res_ = np.array([tofit_params[ikey].default_val for ikey in tofit_params_keys])
+    res_ = np.array([v2 for _, v2 in tofit_params.values()])
     for i_, ikey_ in enumerate(usekeys):
         res_[tofit_params_keys.index(ikey_)] = inarr[i_]  
     return res_       

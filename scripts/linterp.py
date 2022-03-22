@@ -3,7 +3,7 @@ from numba import jit
 __all__ = ['locate', 'linterp', 'tsum']
 
 # ---------------------------------------------------------------- #
-@jit(nopython=True)
+@jit(nopython=True,fastmath=True)
 def locate(xx, x):
     """
     - should be the same as locate.f90
@@ -38,7 +38,7 @@ def locate(xx, x):
     
 
 # ---------------------------------------------------------------- #
-@jit(nopython=True)
+@jit(nopython=True,fastmath=True)
 def linterp(xin, yin, xout):
     return np.interp(xout, xin, yin)
 

@@ -30,7 +30,7 @@ def add_response(pos, range_,
                dr*(1-dm)*minus[:,vr+1,vm]/solar[:,vr+1,vm] + \
                (1-dr)*(1-dm)*minus[:,vr,vm]/solar[:,vr,vm]
                     
-        return 1+(tmpr-1)*math.fabs(pos)/range_
+        return 1+(tmpr-1)*abs(pos)/range_
 
         
 

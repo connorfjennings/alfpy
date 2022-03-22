@@ -117,17 +117,16 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
         pickle_model_name = '{0}pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
         print('No existing model array.  We will create one and pickle dump it to \n'+pickle_model_name)
         alfvar = ALFVAR()
-        #with open(pickle_model_name, 'wb') as handle:
-        #    pickle.dump(alfvar, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        #pickle.dump(alfvar, open(pickle_model_name, "wb" ))
 
-    nmcmc = 100    # -- number of chain steps to print to file
+
+    nmcmc = 200    # -- number of chain steps to print to file
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 2000    # -- length of chain burn-in
+    nburn = 0    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
-    print_mcmc = 1; print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
+    #print_mcmc = 1; 
+    #print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
 
     #dopowell = 0  # -- start w/ powell minimization?
     #ftol = 0.1    # -- Powell iteration tolerance
@@ -328,7 +327,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     global_prhiarr = copy.deepcopy(prhiarr)
     
     global use_keys
-    use_keys = [ikey for ikey in tofit_params.keys() if tofit_params[ikey].fit is True]
+    use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
     npar = len(use_keys)
 
     # -------- optimize the first four parameters -------- #
@@ -443,7 +442,7 @@ if __name__ == "__main__":
     print('sampler = {0}'.format(run))
 
     dir0 = '{0}/pickle/'.format(os.environ['ALFPY_HOME'])
-    model_arr = dir0+'alfvar_sspgrid_zsol_a+0.2.p',
+    #model_arr = dir0+'alfvar_sspgrid_zsol_a+0.2.p',
     alf(filename, 
         tag,
         model_arr = None,#dir0+'alfvar_sspgrid_zsol_a+0.2.p',

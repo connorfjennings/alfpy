@@ -20,7 +20,7 @@ from tqdm import tqdm
 __all__ = ['calm2l_dynesty']
 ALFPY_HOME = os.environ['ALFPY_HOME']
 
-key_list = [ikey for ikey in tofit_params.keys() if tofit_params[ikey].fit is True]
+key_list = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
 
 # ---------------------------------------------------------------- #
 def worker_m2l(alfvar, use_keys, inarr):

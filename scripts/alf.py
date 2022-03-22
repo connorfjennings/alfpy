@@ -125,16 +125,16 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 200    # -- length of chain burn-in
+    nburn = 2000    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
     print_mcmc = 1; print_mcmc_spec = 0    # -- save the chain outputs to file and the model spectra
 
-    dopowell = 0  # -- start w/ powell minimization?
-    ftol = 0.1    # -- Powell iteration tolerance
+    #dopowell = 0  # -- start w/ powell minimization?
+    #ftol = 0.1    # -- Powell iteration tolerance
     # -- if set, will print to screen timing of likelihood calls
-    test_time = 0
+    #test_time = 0
     # -- number of Monte Carlo realizations of the noise for index errors
-    nmcindx = 1000
+    #nmcindx = 1000
 
     # -- check
     #totacc = 0; #iter_ = 30
@@ -372,7 +372,7 @@ def alf(filename, tag='', run='dynesty', model_arr = None, ncpu=1):
                     [np.random.uniform(tem_prior.range[0], 
                                        tem_prior.range[1], 
                                        nwalkers)])
-    print(['%.1e' %log_prob_nested(pos_emcee_in[i]) for i in range(pos_emcee_in.shape[0])])
+    #print(['%.1e' %log_prob_nested(pos_emcee_in[i]) for i in range(pos_emcee_in.shape[0])])
     # ---------------------------------------------------------------- #
     if run == 'emcee':
         print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
@@ -438,7 +438,7 @@ if __name__ == "__main__":
     tag = ''
     if n_argv >= 3:
         tag = argv_l[2]
-    run = 'dynesty'
+    run = 'emcee'
     print('\nrunning alf:\ninput spectrum:{0}.dat'.format(filename))
     print('sampler = {0}'.format(run))
 
@@ -446,7 +446,7 @@ if __name__ == "__main__":
     model_arr = dir0+'alfvar_sspgrid_zsol_a+0.2.p',
     alf(filename, 
         tag,
-        model_arr = dir0+'alfvar_sspgrid_zsol_a+0.2.p',
+        model_arr = None,#dir0+'alfvar_sspgrid_zsol_a+0.2.p',
         run=run, ncpu=ncpu)
 
 

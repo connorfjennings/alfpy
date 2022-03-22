@@ -48,7 +48,7 @@ def worker_m2l(alfvar, use_keys, inarr):
 # ---------------------------------------------------------------- #
 def calm2l_dynesty(in_res, alfvar, use_keys, outname, ncpu=1):
     print('creating results file:\n {0}results/res_dynesty_{1}.hdf5'.format(ALFPY_HOME, outname))
-    f1 = h5py.File("{0}results/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
+    f1 = h5py.File("{0}results_dynesty/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
     for ikey in ['samples', 'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information']:
         dset = f1.create_dataset(ikey, dtype=np.float16, data=getattr(in_res, ikey))
 
@@ -104,5 +104,5 @@ def calm2l_mcmc(infile, alfvar, ncpu, outname):
     ndur = time.time() - tstart
     pool.close()
     print('\ncalculating m2l in .mcmc file: {:.2f}minutes'.format(ndur/60.))
-    np.savez('{0}results/{1}_mcmcm2l_b.npz'.format(ALFPY_HOME, outname), m2l=ml_res)
+    np.savez('{0}results_dynesty/{1}_mcmcm2l_b.npz'.format(ALFPY_HOME, outname), m2l=ml_res)
     return np.array(ml_res)

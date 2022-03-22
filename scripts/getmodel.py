@@ -1,7 +1,7 @@
 import math, numpy as np
 from velbroad import *
 from linterp import locate, linterp
-from add_response import add_response
+from add_response import add_response, add_na_03
 from getmass import getmass
 from alf_constants import *
 #from str2arr import *
@@ -10,14 +10,14 @@ __all__ = ['getmodel']
         
 
 # ---------------------------------------------------------------- #    
-@jit(nopython=True)
+@jit(nopython=True, fastmath=True)
 def get_dv(ingrid, inval, maxv, minv, maxind, minind):
     inind = max(min(locate(ingrid, inval),maxind),minind)  
     return inind, max(min((inval - ingrid[inind])/(ingrid[inind+1]-ingrid[inind]), maxv), minv)
 
 
 # ---------------------------------------------------------------- #    
-@jit(nopython=True)
+@jit(nopython=True, fastmath=True)
 def cal_logsspm(inarr, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt):
         tmp1 = ((1-dx1)*(1-dx2)*(1-dx3)*inarr[:,vv1,vv2,vt+1,vv3,vm3+1] + 
                    dx1*(1-dx2)*(1-dx3)*inarr[:,vv1+1,vv2,vt+1,vv3,vm3+1] + 
@@ -60,7 +60,7 @@ def cal_logsspm(inarr, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt):
 
     
 # ---------------------------------------------------------------- #  
-@jit(nopython=True)
+@jit(nopython=True, fastmath=True)
 def cal_logssp(inarr, dx1, dx2, dt, dm, vv1, vv2, vm, vt):    
         tmp1 = ((1.0-dx1)*(1.0-dx2)*inarr[:, vv1,vv2,vt+1,vm+1] + 
                    dx1*(1.0-dx2)*inarr[:, vv1+1,vv2,vt+1,vm+1] + 
@@ -84,10 +84,9 @@ def cal_logssp(inarr, dx1, dx2, dt, dm, vv1, vv2, vm, vt):
         
         return np.power(10,dt*dm*tmp1 + (1.-dt)*dm*tmp2 + dt*(1.-dm)*tmp3 +(1.-dt)*(1.-dm)*tmp4 )
     
-    
-    
+
 # ---------------------------------------------------------------- #
-#@jit(nopython=True)
+
 def getmodel(pos, alfvar, mw = 0):
     """
     routine to produce a model spectrum (spec) for an input
@@ -111,25 +110,14 @@ def getmodel(pos, alfvar, mw = 0):
 
     #---------------------------------------------------------------!
     #---------------------------------------------------------------!
-
     # ---- set up interpolants for age, Line 25 in getmodel.f90
-    #vt = max(min(locate(sspgrid.logagegrid, pos.logage),alfvar.nage-2),0)
-    #dt = (pos.logage - sspgrid.logagegrid[vt])/(sspgrid.logagegrid[vt+1]-sspgrid.logagegrid[vt])
-    #dt = max(min(dt, 1.2), -0.3)    # 0.5<age<14 Gyr
     vt, dt = get_dv(sspgrid.logagegrid, pos.logage, 1.2, -0.3, alfvar.nage-2, 0)
 
     # ---- set up interpolants for metallicity
-    #vm = max(min(locate(sspgrid.logzgrid, pos.zh), nzmet-2), 0)
-    #dm = (pos.zh-sspgrid.logzgrid[vm])/(sspgrid.logzgrid[vm+1]-sspgrid.logzgrid[vm])
-    #dm = max(min(dm, 1.0),-1.0)    # -2.0<[Z/H]<0.25
     vm, dm = get_dv(sspgrid.logzgrid, pos.zh, 1.0, -1.0, nzmet-2, 0)
 
     # ---- compute the IMF-variable SSP
     if (alfvar.mwimf == 0) and (mw==0) and (alfvar.fit_type==0) and (alfvar.powell_fitting==0):
-        
-        #vv1 = max(min(locate(sspgrid.imfx1, pos.imf1), nimf-2), 0)
-        #dx1 = (pos.imf1-sspgrid.imfx1[vv1])/(sspgrid.imfx1[vv1+1]-sspgrid.imfx1[vv1])
-        #dx1 = max(min(dx1, 1.0), 0.0)
         vv1, dx1 = get_dv(sspgrid.imfx1, pos.imf1, 1.0, 0.0, nimf-2, 0)
 
         if alfvar.imf_type in [0, 2]:
@@ -142,8 +130,7 @@ def getmodel(pos, alfvar, mw = 0):
 
             
         if alfvar.imf_type == 2 or alfvar.imf_type == 3:
-            vv3, dx3 = get_dv(sspgrid.imfx3, pos.imf3, 1.0, 0.0, alfvar.nmcut-2, 0)
-            
+            vv3, dx3 = get_dv(sspgrid.imfx3, pos.imf3, 1.0, 0.0, alfvar.nmcut-2, 0)           
 
         if alfvar.imf_type == 2 or alfvar.imf_type == 3:
             vm3, dm3 = get_dv(sspgrid.logzgrid2, pos.zh, 1.5, -1.0, nzmet3-2,0)
@@ -165,40 +152,37 @@ def getmodel(pos, alfvar, mw = 0):
             imfw[7-1] = 10**pos.imf4
             imfw[8-1] = 10**((alfvar.imf5+pos.imf4)/2.)
             imfw[9-1] = 10**alfvar.imf5
-            
-            """
-            tmp1 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm+1]) for i in range(alfvar.nimfnp)]), 
-                          axis=0)
-            tmp2 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm+1]) for i in range(alfvar.nimfnp)]), 
-                          axis=0)
-            tmp3 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm]) for i in range(alfvar.nimfnp)]), 
-                          axis=0)
-            tmp4 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm]) for i in range(alfvar.nimfnp)]), 
-                          axis=0)
-            """
 
-            tmp1 = np.zeros(sspgrid.sspnp.shape[0])
-            tmp2 = np.zeros(sspgrid.sspnp.shape[0])
-            tmp3 = np.zeros(sspgrid.sspnp.shape[0])
-            tmp4 = np.zeros(sspgrid.sspnp.shape[0])
+
+            #tmp1 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm+1]) for i in range(alfvar.nimfnp)]), 
+            #              axis=0)
+            #tmp2 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm+1]) for i in range(alfvar.nimfnp)]), 
+            #              axis=0)
+            #tmp3 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt+1,vm]) for i in range(alfvar.nimfnp)]), 
+            #              axis=0)
+            #tmp4 = np.sum(np.array([np.array(imfw[i]*sspgrid.sspnp[:,i,vt,vm]) for i in range(alfvar.nimfnp)]), 
+            #              axis=0)
+
+
+            lam_length = len(sspgrid.lam)
+            tmp1, tmp2, tmp3, tmp4 = np.zeros((4, lam_length))
             for i in range(alfvar.nimfnp):
                 tmp1 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm+1]
                 tmp2 += imfw[i]*sspgrid.sspnp[:,i, vt, vm+1]
                 tmp3 += imfw[i]*sspgrid.sspnp[:,i, vt+1, vm]
                 tmp4 += imfw[i]*sspgrid.sspnp[:,i, vt, vm]
 
-
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt+1]) * 
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm+1]+
                             msto_z2*sspgrid.logzgrid[vm+1]**2),3.0),0.75)
-            mass, inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
+            _, inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
                                   krpa_imf3,pos.imf3,pos.imf4)
             tmp1 = tmp1/inorm
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt]) *
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm+1]+
                             msto_z2*sspgrid.logzgrid[vm+1]**2),3.0),0.75)
-            mass,inorm = getmass(alfvar.imflo, msto, 
+            _, inorm = getmass(alfvar.imflo, msto, 
                                  pos.imf1, pos.imf2, 
                                  krpa_imf3, pos.imf3, pos.imf4)
             tmp2 = tmp2/inorm
@@ -206,14 +190,14 @@ def getmodel(pos, alfvar, mw = 0):
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt+1]) * 
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm]+ 
                             msto_z2*sspgrid.logzgrid[vm]**2),3.0),0.75)
-            mass,inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
+            _, inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
                                  krpa_imf3, pos.imf3, pos.imf4)
             tmp3 = tmp3/inorm
 
             msto = max(min(10**(msto_t0+msto_t1*sspgrid.logagegrid[vt]) * 
                            (msto_z0+msto_z1*sspgrid.logzgrid[vm]+ 
                             msto_z2*sspgrid.logzgrid[vm]**2),3.0),0.75)
-            mass,inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
+            _, inorm = getmass(alfvar.imflo, msto, pos.imf1, pos.imf2, 
                                  krpa_imf3, pos.imf3, pos.imf4)
             tmp4 = tmp4/inorm
 
@@ -235,9 +219,6 @@ def getmodel(pos, alfvar, mw = 0):
     # ---- only include these parameters in the "full" model
     if (alfvar.fit_type==0) and (alfvar.powell_fitting == 0) and (alfvar.fit_two_ages ==1):
         fy = max(min(10**pos.logfy, 1.0), 0.0)
-        #vy = max(min(locate(sspgrid.logagegrid, pos.fy_logage), nage-2),0)
-        #dy = (pos.fy_logage-sspgrid.logagegrid[vy])/(sspgrid.logagegrid[vy+1]-sspgrid.logagegrid[vy])
-        #dy = max(min(dy, 1.0), -0.3)    #!0.5<age<13.5 Gyr
         vy, dy = get_dv(sspgrid.logagegrid, pos.fy_logage, 1.0, -0.3, alfvar.nage-2, 0)
         
         yspec = (dy*dm*sspgrid.logssp[:,imfr1, imfr2, vy+1, vm+1] + 
@@ -249,25 +230,21 @@ def getmodel(pos, alfvar, mw = 0):
     # ---- vary age in the response functions
     if alfvar.use_age_dep_resp_fcns == 0:
         # ---- force the use of the response fcn at age=fix_age_dep_resp_fcns
-        #vr = max(min(locate(sspgrid.logagegrid_rfcn, np.log10(alfvar.fix_age_dep_resp_fcns)), alfvar.nage_rfcn-2),0)
-        #dr = (np.log10(alfvar.fix_age_dep_resp_fcns)-sspgrid.logagegrid_rfcn[vr])/(sspgrid.logagegrid_rfcn[vr+1]-sspgrid.logagegrid_rfcn[vr])
-        #dr = max(min(dr, 1.0), 0.0)
-        vr, dr = get_dv(sspgrid.logagegrid_rfcn, np.log10(alfvar.fix_age_dep_resp_fcns), 1.0, 0.0, alfvar.nage_rfcn-2,0)
-
+        vr, dr = get_dv(sspgrid.logagegrid_rfcn, 
+                        math.log10(alfvar.fix_age_dep_resp_fcns), 
+                        1.0, 0.0, alfvar.nage_rfcn-2,0)
     else:
         # ---- should be using mass-weighted age here
-        #vr = max(min(locate(sspgrid.logagegrid_rfcn,pos.logage),alfvar.nage_rfcn-2),0)
-        #dr = (pos.logage-sspgrid.logagegrid_rfcn[vr])/(sspgrid.logagegrid_rfcn[vr+1]-sspgrid.logagegrid_rfcn[vr])
-        #dr = max(min(dr, 1.0), 0.0)
-        vr, dr = get_dv(sspgrid.logagegrid_rfcn, pos.logage, 1.0, 0.0,alfvar.nage_rfcn-2,0)
+        vr, dr = get_dv(sspgrid.logagegrid_rfcn, 
+                        pos.logage, 1.0, 0.0, 
+                        alfvar.nage_rfcn-2, 0)
 
         
     # ---- vary metallicity in the response functions, line 221
     if alfvar.use_z_dep_resp_fcns == 0:
-        #vm2 = max(min(locate(sspgrid.logzgrid,alfvar.fix_z_dep_resp_fcns),nzmet-2),0)
-        #dm2 = (alfvar.fix_z_dep_resp_fcns-sspgrid.logzgrid[vm2])/(sspgrid.logzgrid[vm2+1]-sspgrid.logzgrid[vm2])
-        #dm2 = max(min(dm2, 1.0), 0.0)
-        vm2, dm2 = get_dv(sspgrid.logzgrid, alfvar.fix_z_dep_resp_fcns, 1.0, 0.0,nzmet-2,0)
+        vm2, dm2 = get_dv(sspgrid.logzgrid, 
+                          alfvar.fix_z_dep_resp_fcns, 
+                          1.0, 0.0, nzmet-2, 0)
     else:
         vm2 = vm
         dm2 = dm
@@ -278,71 +255,74 @@ def getmodel(pos, alfvar, mw = 0):
     # line 250
     if (alfvar.powell_fitting ==0) and (alfvar.fit_type != 2):
         #vary [Fe/H]
-        spec = add_response(spec, pos.feh, 0.3, dr,vr,dm2,vm2, 
+        spec *= add_response(pos.feh, 0.3, dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.fep,sspgrid.fem)
         #vary [O/H]
-        spec = add_response(spec, pos.ah, 0.3, dr,vr,dm2,vm2, 
+        spec *= add_response(pos.ah, 0.3, dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.ap)
         #vary [C/H]
-        spec = add_response(spec, pos.ch, 0.15,dr,vr,dm2,vm2, 
+        spec *= add_response(pos.ch, 0.15,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.cp, sspgrid.cm)
         #vary [N/H]
-        spec = add_response(spec, pos.nh, 0.3, dr,vr,dm2,vm2, 
+        spec *= add_response(pos.nh, 0.3, dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.np, sspgrid.nm)
         #vary [Mg/H]
-        spec = add_response(spec, pos.mgh, 0.3,dr,vr,dm2,vm2, 
+        spec *= add_response(pos.mgh, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.mgp, sspgrid.mgm)
         #vary [Si/H]
-        spec = add_response(spec, pos.sih, 0.3,dr,vr,dm2,vm2, 
+        spec *= add_response(pos.sih, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.sip, sspgrid.sim)
         #vary [Ca/H]
-        spec = add_response(spec, pos.cah, 0.3,dr,vr,dm2,vm2, 
+        spec *= add_response(pos.cah, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.cap, sspgrid.cam)
         #vary [Ti/H]
-        spec = add_response(spec, pos.tih, 0.3,dr,vr,dm2,vm2, 
+        spec *= add_response(pos.tih, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.tip, sspgrid.tim)
         #vary [Na/H] (special case)
         if pos.nah < 0.3:
-            spec = add_response(spec, pos.nah, 0.3, dr,vr,dm2,vm2, 
+            spec *= add_response(pos.nah, 0.3, dr,vr,dm2,vm2, 
                                 sspgrid.solar,sspgrid.nap,sspgrid.nam)
             
             
         elif pos.nah >= 0.3 and pos.nah < 0.6:
+            
+            #tmpr = (dr*dm2*sspgrid.nap[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + \
+            #        (1-dr)*dm2*sspgrid.nap[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + \
+            #        dr*(1-dm2)*sspgrid.nap[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + \
+            #        (1-dr)*(1-dm2)*sspgrid.nap[:,vr,vm2]/sspgrid.solar[:,vr,vm2])
 
-            tmpr = (dr*dm2*sspgrid.nap[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + \
-                    (1-dr)*dm2*sspgrid.nap[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + \
-                    dr*(1-dm2)*sspgrid.nap[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + \
-                    (1-dr)*(1-dm2)*sspgrid.nap[:,vr,vm2]/sspgrid.solar[:,vr,vm2])
+            #tmp = (dr*dm2*(sspgrid.nap6[:,vr+1,vm2+1]-sspgrid.nap[:,vr+1,vm2+1])/sspgrid.solar[:,vr+1,vm2+1]+ \
+            #       (1-dr)*dm2*(sspgrid.nap6[:,vr,vm2+1]-sspgrid.nap[:,vr,vm2+1])/sspgrid.solar[:,vr,vm2+1]+ \
+            #       dr*(1-dm2)*(sspgrid.nap6[:,vr+1,vm2]-sspgrid.nap[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+ \
+            #       (1-dr)*(1-dm2)*(sspgrid.nap6[:,vr,vm2]-sspgrid.nap[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
 
-            tmp = (dr*dm2*(sspgrid.nap6[:,vr+1,vm2+1]-sspgrid.nap[:,vr+1,vm2+1])/sspgrid.solar[:,vr+1,vm2+1]+ \
-                   (1-dr)*dm2*(sspgrid.nap6[:,vr,vm2+1]-sspgrid.nap[:,vr,vm2+1])/sspgrid.solar[:,vr,vm2+1]+ \
-                   dr*(1-dm2)*(sspgrid.nap6[:,vr+1,vm2]-sspgrid.nap[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+ \
-                   (1-dr)*(1-dm2)*(sspgrid.nap6[:,vr,vm2]-sspgrid.nap[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
-
-            spec *= tmpr+tmp*(pos.nah-0.3)/0.3
+            #spec *= tmpr+tmp*(pos.nah-0.3)/0.3
+            spec *= add_na_03(pos.nah, 0.3, dr,vr,dm2,vm2, 
+                              sspgrid.solar, sspgrid.nap, sspgrid.nap6)
 
                    
         elif pos.nah >= 0.6:
 
-            tmpr = (dr*dm2*sspgrid.nap6[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + 
-            (1-dr)*dm2*sspgrid.nap6[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + 
-            dr*(1-dm2)*sspgrid.nap6[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + 
-            (1-dr)*(1-dm2)*sspgrid.nap6[:,vr,vm2]/sspgrid.solar[:,vr,vm2])
+            #tmpr = (dr*dm2*sspgrid.nap6[:,vr+1,vm2+1]/sspgrid.solar[:,vr+1,vm2+1] + 
+            #(1-dr)*dm2*sspgrid.nap6[:,vr,vm2+1]/sspgrid.solar[:,vr,vm2+1] + 
+            #dr*(1-dm2)*sspgrid.nap6[:,vr+1,vm2]/sspgrid.solar[:,vr+1,vm2] + 
+            #(1-dr)*(1-dm2)*sspgrid.nap6[:,vr,vm2]/sspgrid.solar[:,vr,vm2])
 
-            tmp = (dr*dm2*(sspgrid.nap9[:,vr+1,vm2+1]-sspgrid.nap6[:,vr+1,vm2+1])/sspgrid.solar[:,vr+1,vm2+1] + 
-                   (1-dr)*dm2*(sspgrid.nap9[:,vr,vm2+1]-sspgrid.nap6[:,vr,vm2+1])/sspgrid.solar[:,vr,vm2+1]+ 
-                   dr*(1-dm2)*(sspgrid.nap9[:,vr+1,vm2]-sspgrid.nap6[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+
-                   (1-dr)*(1-dm2)*(sspgrid.nap9[:,vr,vm2]-sspgrid.nap6[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
+            #tmp = (dr*dm2*(sspgrid.nap9[:,vr+1,vm2+1]-sspgrid.nap6[:,vr+1,vm2+1])/sspgrid.solar[:,vr+1,vm2+1] + 
+            #       (1-dr)*dm2*(sspgrid.nap9[:,vr,vm2+1]-sspgrid.nap6[:,vr,vm2+1])/sspgrid.solar[:,vr,vm2+1]+ 
+            #       dr*(1-dm2)*(sspgrid.nap9[:,vr+1,vm2]-sspgrid.nap6[:,vr+1,vm2])/sspgrid.solar[:,vr+1,vm2]+
+            #       (1-dr)*(1-dm2)*(sspgrid.nap9[:,vr,vm2]-sspgrid.nap6[:,vr,vm2])/sspgrid.solar[:,vr,vm2])
 
-            spec *= tmpr+tmp*(pos.nah-0.6)/0.6
-
+            #spec *= tmpr+tmp*(pos.nah-0.6)/0.6
+            spec *= add_na_03(pos.nah, 0.6, dr,vr,dm2,vm2, 
+                              sspgrid.solar, sspgrid.nap6, sspgrid.nap9)
 
 
     # ---- only include these parameters in the "full" model, line325
     if alfvar.fit_type==0 and alfvar.powell_fitting==0:
                    
         # ---- vary Teff (special case - force use of the 13 Gyr model)
-        spec = add_response(spec, pos.teff, 50.,1.0, alfvar.nage_rfcn-2, dm2, vm2,
+        spec *= add_response(pos.teff, 50.,1.0, alfvar.nage_rfcn-2, dm2, vm2,
                             sspgrid.solar, sspgrid.teffp, sspgrid.teffm)
          
         # ---- add a hot star (interpolate in hot_teff and [Z/H]
@@ -363,25 +343,25 @@ def getmodel(pos, alfvar, mw = 0):
         spec = (1.0-fy)*spec + fy*sspgrid.m7g
 
         # ---- vary [K/H] ---- #
-        spec = add_response(spec,pos.kh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.kp)
+        spec *= add_response(pos.kh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.kp)
         # ---- vary [V/H]
-        spec = add_response(spec,pos.vh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.vp)
+        spec *= add_response(pos.vh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.vp)
         # ---- vary [Cr/H]
-        spec = add_response(spec,pos.crh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.crp)
+        spec *= add_response(pos.crh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.crp)
         # ---- vary [Mn/H]
-        spec = add_response(spec,pos.mnh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.mnp)
+        spec *= add_response(pos.mnh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.mnp)
         # ---- vary [Co/H]
-        spec = add_response(spec,pos.coh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.cop)
+        spec *= add_response(pos.coh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.cop)
         # ---- vary [Ni/H]
-        spec = add_response(spec,pos.nih,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.nip)
+        spec *= add_response(pos.nih,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.nip)
         # ---- vary [Cu/H]
-        spec = add_response(spec,pos.cuh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.cup)
+        spec *= add_response(pos.cuh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.cup)
         # ---- vary [Sr/H]
-        spec = add_response(spec,pos.srh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.srp)
+        spec *= add_response(pos.srh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.srp)
         # ---- vary [Ba/H]
-        spec = add_response(spec,pos.bah,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.bap,sspgrid.bam)
+        spec *= add_response(pos.bah,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.bap,sspgrid.bam)
         # ---- vary [Eu/H]
-        spec = add_response(spec,pos.euh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.eup)
+        spec *= add_response(pos.euh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.eup)
 
         
         #add emission lines
@@ -397,25 +377,6 @@ def getmodel(pos, alfvar, mw = 0):
                                    1., 1., 1./2.95, 1., 1., 1., 0.77, 
                                    1., 1.35, 1./65, 1./55, 1./45, 1./35, 
                                    1./25, 1./18])
-            #emnormall[1-1] = 10**pos.logemline_h / 11.21   # Hy
-            #emnormall[2-1]  = 10**pos.logemline_h / 6.16    # Hd
-            #emnormall[3-1]  = 10**pos.logemline_h / 2.87    # Hb
-            #emnormall[4-1]  = 10**pos.logemline_oiii / 3.0  # [OIII]
-            #emnormall[5-1]  = 10**pos.logemline_oiii        # [OIII]
-            #emnormall[6-1]  = 10**pos.logemline_ni          # [NI]
-            #emnormall[7-1]  = 10**pos.logemline_nii / 2.95  # [NII]
-            #emnormall[8-1]  = 10**pos.logemline_h           # Ha
-            #emnormall[9-1]  = 10**pos.logemline_nii         # [NII]
-            #emnormall[10-1] = 10**pos.logemline_sii         # [SII]
-            #emnormall[11-1] = 10**pos.logemline_sii * 0.77  # [SII]
-            #emnormall[12-1] = 10**pos.logemline_oii         # [OII]
-            #emnormall[13-1] = 10**pos.logemline_oii * 1.35  # [OII]
-            #emnormall[14-1] = 10**pos.logemline_h / 65.0    # H12 (ratio is made up)
-            #emnormall[15-1] = 10**pos.logemline_h / 55.0    # H11 (ratio is made up)
-            #emnormall[16-1] = 10**pos.logemline_h / 45.0    # H10
-            #emnormall[17-1] = 10**pos.logemline_h / 35.0    # H9
-            #emnormall[18-1] = 10**pos.logemline_h / 25.0    # H8
-            #emnormall[19-1] = 10**pos.logemline_h / 18.0    # H7
 
             for i in range(alfvar.neml):
                 # ---- allow the em lines to be offset in velocity from the continuum
@@ -425,7 +386,7 @@ def getmodel(pos, alfvar, mw = 0):
                 spec += emnormall[i] * np.exp(-(sspgrid.lam-ve)**2/lsig**2/2.0)
 
     
-    #velocity broaden the model       
+    # velocity broaden the model       
     if pos.sigma > 5. and alfvar.fit_indices==0:
         if alfvar.fit_hermite == 1:
             hermite[0] = pos.h3
@@ -441,10 +402,7 @@ def getmodel(pos, alfvar, mw = 0):
     if alfvar.fit_type== 0 and alfvar.powell_fitting==0 and alfvar.fit_trans==1:
         #applied in the observed frame
         tmp_ltrans     = sspgrid.lam / (1+pos.velz/clight*1e5)
-
-        #tmp_ftrans_h2o = np.interp(x=sspgrid.lam, xp=tmp_ltrans, fp=sspgrid.atm_trans_h2o)
         tmp_ftrans_h2o = linterp(xin=tmp_ltrans, yin=sspgrid.atm_trans_h2o, xout=sspgrid.lam)
-        #tmp_ftrans_o2  = np.interp(x=sspgrid.lam, xp=tmp_ltrans, fp=sspgrid.atm_trans_o2)
         tmp_ftrans_o2  = linterp(xin=tmp_ltrans, yin=sspgrid.atm_trans_o2, xout=sspgrid.lam)
         spec = spec*(1+(tmp_ftrans_h2o-1)*10**pos.logtrans)
         spec = spec*(1+(tmp_ftrans_o2-1)*10**pos.logtrans)

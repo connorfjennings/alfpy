@@ -435,7 +435,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
     if alfvar.fit_type==0 and alfvar.powell_fitting==0:
                    
         # ---- vary Teff (special case - force use of the 13 Gyr model)
-        spec = add_response(spec, pos.teff, 50.,1.0, alfvar.nage_rfcn-2, dm2, vm2,
+        spec *= add_response(spec, pos.teff, 50.,1.0, alfvar.nage_rfcn-2, dm2, vm2,
                             sspgrid.solar, sspgrid.teffp, sspgrid.teffm)
         
          
@@ -517,25 +517,7 @@ def getmodel_grid(pos, alfvar, mw = 0, interp_logsspm=None, interp_logssp=None):
                                    1., 1., 1./2.95, 1., 1., 1., 0.77, 
                                    1., 1.35, 1./65, 1./55, 1./45, 1./35, 
                                    1./25, 1./18])
-            #emnormall[1-1] = 10**pos.logemline_h / 11.21   # Hy
-            #emnormall[2-1]  = 10**pos.logemline_h / 6.16    # Hd
-            #emnormall[3-1]  = 10**pos.logemline_h / 2.87    # Hb
-            #emnormall[4-1]  = 10**pos.logemline_oiii / 3.0  # [OIII]
-            #emnormall[5-1]  = 10**pos.logemline_oiii        # [OIII]
-            #emnormall[6-1]  = 10**pos.logemline_ni          # [NI]
-            #emnormall[7-1]  = 10**pos.logemline_nii / 2.95  # [NII]
-            #emnormall[8-1]  = 10**pos.logemline_h           # Ha
-            #emnormall[9-1]  = 10**pos.logemline_nii         # [NII]
-            #emnormall[10-1] = 10**pos.logemline_sii         # [SII]
-            #emnormall[11-1] = 10**pos.logemline_sii * 0.77  # [SII]
-            #emnormall[12-1] = 10**pos.logemline_oii         # [OII]
-            #emnormall[13-1] = 10**pos.logemline_oii * 1.35  # [OII]
-            #emnormall[14-1] = 10**pos.logemline_h / 65.0    # H12 (ratio is made up)
-            #emnormall[15-1] = 10**pos.logemline_h / 55.0    # H11 (ratio is made up)
-            #emnormall[16-1] = 10**pos.logemline_h / 45.0    # H10
-            #emnormall[17-1] = 10**pos.logemline_h / 35.0    # H9
-            #emnormall[18-1] = 10**pos.logemline_h / 25.0    # H8
-            #emnormall[19-1] = 10**pos.logemline_h / 18.0    # H7
+
 
             for i in range(alfvar.neml):
                 # ---- allow the em lines to be offset in velocity from the continuum

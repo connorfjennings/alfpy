@@ -25,7 +25,7 @@ def add_response(spec, pos, range_,
                    dr*(1-dm)* plus[:,vr+1,vm]/solar[:,vr+1,vm] + \
                    (1-dr)*(1-dm)*plus[:,vr,vm]/solar[:,vr,vm]
             
-            spec *= 1+(tmpr-1)*pos/range_
+            spec *= 1.+(tmpr-1.)*pos/range_
 
         else:
             tmpr = dr*dm*minus[:,vr+1,vm+1]/solar[:,vr+1,vm+1] + \

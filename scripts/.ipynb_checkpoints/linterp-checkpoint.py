@@ -2,7 +2,6 @@ import numpy as np
 from numba import jit
 __all__ = ['locate', 'linterp', 'tsum']
 
-
 # ---------------------------------------------------------------- #
 @jit(nopython=True)
 def locate(xx, x):
@@ -14,35 +13,29 @@ def locate(xx, x):
               np.argmin(np.abs(a-i)): 5,6,5,6
     """
     n = len(xx)
-    if xx[-1] >= xx[0]:
-        ascnd = True
-    else:
-        ascnd = False
-    jl = -1
-    ju = n
-        
-    if ascnd:
-        while ju-jl>1:
-            jm = int((ju+jl)/2)
-            if x>= xx[jm]:
-                jl=jm
-            else:
-                ju=jm
-    else:
-        while ju-jl>1:
-            jm = int((ju+jl)/2)
-            if x< xx[jm]:
-                jl=jm
-            else:
-                ju=jm
-                 
     if x==xx[0]:
         return 0
     elif x==xx[-1]:
         return n-2
     else:
+        jl = -1
+        ju = n
+        if xx[-1] >= xx[0]:
+            while ju-jl>1:
+                jm = (ju+jl)//2
+                if x>= xx[jm]:
+                    jl=jm
+                else:
+                    ju=jm
+        else:
+            while ju-jl>1:
+                jm = (ju+jl)//2
+                if x< xx[jm]:
+                    jl=jm
+                else:
+                    ju=jm
         return jl
-        
+    
 
 # ---------------------------------------------------------------- #
 @jit(nopython=True)

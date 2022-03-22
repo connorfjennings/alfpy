@@ -26,9 +26,7 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     return: normed spectra
     """
     
-    
     poly_dlam = 100.
-    
     buff = 0.0
     #mask = np.ones(npolymax+1)
     #covar = np.empty((npolymax+1, npolymax+1))
@@ -40,16 +38,20 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     # ---- !don't let things get out of hand (force Npow<=npolymax)
 
     if npow is None:
-        npow = min(int((il2-il1)/poly_dlam), npolymax)-1
+        # ---- use -1 to be consistent with alf ---- # 
+        # ---- -> returned coeff should have the same length ---- #
+        npow = min((il2-il1)//poly_dlam, npolymax) - 1
     i1 = min(max(locate(lam, il1-buff),0), n1-2)
     i2 = min(max(locate(lam, il2+buff),1), n1-1)+1   
     ml = (il1+il2)/2.0
     
     #!simple linear least squares polynomial fit
     ind = np.isfinite(flx[i1:i2])
-    res = np.polyfit(x = lam[i1:i2][ind]-ml, y = flx[i1:i2][ind], 
+    res = np.polyfit(x = lam[i1:i2][ind]-ml, 
+                     y = flx[i1:i2][ind], 
                      deg = npow, full = True, 
-                     w = 1./np.square(err[i1:i2][ind]), cov = True)
+                     w = 1./np.square(err[i1:i2][ind]), 
+                     cov = True)
     
     covar = res[2]
     chi2sqr = res[1]

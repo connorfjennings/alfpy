@@ -25,11 +25,11 @@ def get_interp_ssp(sspgrid, use_sspm = False):
     if use_sspm == True:
         interp_= RegularGridInterpolator((sspgrid.imfx1, sspgrid.imfx2, sspgrid.logagegrid, 
                                           sspgrid.imfx3, sspgrid.logzgrid2), 
-                                         np.transpose(sspgrid.logsspm, (1,2,3,4,5,0)), method='linear', bounds_error=False, fill_value=np.nan)
+                                         np.transpose(sspgrid.logsspm, (1,2,3,4,5,0)), method='linear', bounds_error=False, fill_value=None)
     else:
         interp_= RegularGridInterpolator((sspgrid.imfx1, sspgrid.imfx2, sspgrid.logagegrid, 
                                           sspgrid.logzgrid), 
-                                         np.transpose(sspgrid.logssp, (1,2,3,4,0)), method='linear', bounds_error=False, fill_value=np.nan)    
+                                         np.transpose(sspgrid.logssp, (1,2,3,4,0)), method='linear', bounds_error=False, fill_value=None)    
     return interp_
     
     

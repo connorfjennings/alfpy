@@ -4,6 +4,8 @@ from dynesty import utils as dyfunc
 from getm2l import *
 from getmodel import *
 from str2arr import *
+from tofit_parameters import tofit_params
+
 import time
 import h5py
 
@@ -18,7 +20,7 @@ from tqdm import tqdm
 __all__ = ['calm2l_dynesty']
 ALFPY_HOME = os.environ['ALFPY_HOME']
 
-key_list = get_default_keylist()
+key_list = [ikey for ikey in tofit_params.keys() if tofit_params[ikey].fit is True]
 
 # ---------------------------------------------------------------- #
 def worker_m2l(alfvar, use_keys, inarr):

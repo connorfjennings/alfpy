@@ -70,12 +70,6 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
-    - use use_keys to define parameters to fit.  Others will remain
-      as set_pinit_priors().
-    - works fine for 4 parameters so far
-    - emcee: run='emcee'
-    - dynesty: run = 'dynesty'
-
     Master program to fit the absorption line spectrum, or indices,
     #  of a quiescent (>1 Gyr) stellar population
     # Some important points to keep in mind:
@@ -112,11 +106,11 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
         print('cannot find model_arr at {0}. \n Please run alf_build_model first'.format(pickle_model_name))
         return 
 
-    nmcmc = 200    # -- number of chain steps to print to file
+    nmcmc = 100    # -- number of chain steps to print to file
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 0    # -- length of chain burn-in
+    nburn = 50000    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
     npar = len(use_keys)
     all_key_list = list(tofit_params.keys())
@@ -124,16 +118,20 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
     # ==== works should have all info ===== #
     # ========== initialize pool ========== #
     if pool_type == 'multiprocessing':
+        import multiprocessing
         from multiprocessing import Pool as to_use_pool        
     else:
         from schwimmbad import MPIPool as to_use_pool 
     with to_use_pool() as pool:
         if pool_type == 'mpi':
+            ncpu = pool.size
             print('pool size', pool.size)
             if not pool.is_master():
                 pool.wait()
                 sys.exit(0) 
-
+        else:
+            ncpu = multiprocessing.cpu_count()
+        print('ncpu=', ncpu)
         # ---------------------------------------------------------------- #
         if run == 'emcee':
             pos_emcee_in = np.zeros(shape=(nwalkers, npar))
@@ -157,7 +155,7 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
             tstart = time.time()
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
             sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
-        
+            print('mean acc fraction %.3f' %np.nanmean(sampler.acceptance_fraction))
             ndur = time.time() - tstart
             print('\n Total time for emcee {:.2f}min'.format(ndur/60))
             res = sampler.get_chain(discard = nburn) # discard: int, burn-in
@@ -169,7 +167,8 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
         elif run == 'dynesty':
             dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, 
                                              npar, nlive = int(50*npar),
-                                             sample='rslice', bootstrap=0, pool=pool)
+                                             sample='rslice', bootstrap=0, 
+                                             pool=pool, queue_size=ncpu)
             ncall = dsampler.ncall
             niter = dsampler.it - 1
             tstart = time.time()
@@ -189,14 +188,20 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
 # -------------------------------- #
 if __name__ == "__main__":
     ncpu = os.getenv('SLURM_NTASKS')
+    ncpu_pertask = os.getenv('SLURM_CPUS_PER_TASK')
+    os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
+        import multiprocessing
         pool_type = 'multiprocessing'
+        ncpu = multiprocessing.cpu_count()
+    elif ncpu_pertask>ncpu:
+        pool_type = 'multiprocessing'
+        ncpu = ncpu_pertask
     else:
         pool_type = 'mpi'
 
-    
-    print('\npool type:', pool_type)
-            
+    print('\npool type:', pool_type)      
+    print('ncpu=', ncpu)
     argv_l = sys.argv
     n_argv = len(argv_l)
     filename = argv_l[1]

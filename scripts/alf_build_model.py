@@ -28,12 +28,6 @@ def build_alf_model(filename, tag='', pool_type='mpi'):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
-    - use use_keys to define parameters to fit.  Others will remain
-      as set_pinit_priors().
-    - works fine for 4 parameters so far
-    - emcee: run='emcee'
-    - dynesty: run = 'dynesty'
-
     Master program to fit the absorption line spectrum, or indices,
     #  of a quiescent (>1 Gyr) stellar population
     # Some important points to keep in mind:
@@ -273,8 +267,15 @@ def build_alf_model(filename, tag='', pool_type='mpi'):
 # -------------------------------- #
 if __name__ == "__main__":
     ncpu = os.getenv('SLURM_NTASKS')
+    ncpu_pertask = os.getenv('SLURM_CPUS_PER_TASK')
+    os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
+        import multiprocessing
         pool_type = 'multiprocessing'
+        ncpu = multiprocessing.cpu_count()
+    elif ncpu_pertask>ncpu:
+        pool_type = 'multiprocessing'
+        ncpu = ncpu_pertask
     else:
         pool_type = 'mpi'
 

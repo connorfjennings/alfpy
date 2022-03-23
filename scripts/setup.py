@@ -9,14 +9,6 @@ from velbroad import *
 import time
 from functools import partial
 
-import multiprocessing
-#import mpi4py
-#from mpi4py import MPI
-#from schwimmbad import MPIPool
-#from schwimmbad import MultiPool
-#from joblib import Parallel, delayed
-#from tqdm import tqdm
-
 """
 read in and set up all the arrays
 """
@@ -34,7 +26,7 @@ def worker(inlam, sigma0, lam_lo, lam_hi, smooth_arr, inarr):
 
 
 # ---------------------------------------------------------------- #
-def setup(alfvar, onlybasic = False, ncpu=1):
+def setup(alfvar, onlybasic = False, pool=None):
     """
     !read in and set up all the arrays
     """
@@ -431,7 +423,6 @@ def setup(alfvar, onlybasic = False, ncpu=1):
         tstart = time.time()
         pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth)
         
-        pool = multiprocessing.Pool(ncpu)
         # ---- define partial worker for all velbroad---- #
         for iattr in temlist:
             print('\n smooth response func ', iattr, end=':')
@@ -480,8 +471,7 @@ def setup(alfvar, onlybasic = False, ncpu=1):
                 alfvar.sspgrid.sspnp[:,j,t,z] = np.copy(temarr[ii]) 
                     
         ndur = time.time() - tstart
-        pool.close()
-        pool.join()
+
         print('\nparallelized velbroad {:.2f}min'.format(ndur/60.))
     alfvar.sspgrid.logssp  = np.log10(alfvar.sspgrid.logssp + tiny_number)
     alfvar.sspgrid.logsspm = np.log10(alfvar.sspgrid.logsspm + tiny_number)

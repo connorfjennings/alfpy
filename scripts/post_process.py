@@ -10,7 +10,7 @@ import time
 import h5py
 
 import multiprocessing
-#from multiprocessing import Pool
+from multiprocessing import Pool
 from schwimmbad import MultiPool
 #from mpi4py.futures import MPIPoolExecutor
 from joblib import Parallel, delayed
@@ -46,8 +46,8 @@ def worker_m2l(alfvar, use_keys, inarr):
 
 
 # ---------------------------------------------------------------- #
-def calm2l_dynesty(in_res, alfvar, use_keys, outname, ncpu=1):
-    print('creating results file:\n {0}results/res_dynesty_{1}.hdf5'.format(ALFPY_HOME, outname))
+def calm2l_dynesty(in_res, alfvar, use_keys, outname, pool):
+    print('creating results file:\n {0}results_dynesty/res_dynesty_{1}.hdf5'.format(ALFPY_HOME, outname))
     f1 = h5py.File("{0}results_dynesty/res_dynesty_{1}.hdf5".format(ALFPY_HOME, outname), "w")
     for ikey in ['samples', 'logwt', 'logl', 'logvol', 'logz', 'logzerr', 'information']:
         dset = f1.create_dataset(ikey, dtype=np.float16, data=getattr(in_res, ikey))
@@ -66,43 +66,13 @@ def calm2l_dynesty(in_res, alfvar, use_keys, outname, ncpu=1):
     samples = np.copy(samples[select_ind,:])
 
     tstart = time.time()
+                    
     pwork = partial(worker_m2l, alfvar, use_keys)
-    nspec = samples.shape[0]
-    m2l_res = Parallel(n_jobs=ncpu)(delayed(pwork)(samples[i]) for i in tqdm(range(nspec)))
-    #m2l_res = executor.map(pwork, [ispec for ispec in samples])
-    #pool = multiprocessing.Pool(ncpu)
-    #m2l_res = pool.map(pwork, [ispec for ispec in samples])
-    #pool.close()
-    #pool.join()
+    ml_res = pool.map(pwork, samples)
+
     ndur = time.time() - tstart
     print('\npost processing dynesty results: {:.2f}minutes'.format(ndur/60.))
 
-    dset = f1.create_dataset('m2l', dtype=np.float16, data=m2l_res)
+    dset = f1.create_dataset('m2l', dtype=np.float16, data=ml_res)
     f1.close()
 
-
-# ---------------------------------------------------------------- #
-def calm2l_emcee(in_res, alfvar, use_keys, ncpu):
-    return None
-
-
-
-
-# ---------------------------------------------------------------- #
-def calm2l_mcmc(infile, alfvar, ncpu, outname):
-    """
-    - for test purpose
-    """
-    ALFPY_HOME = os.environ['ALFPY_HOME']
-    samples = np.array(pd.read_csv(infile, delim_whitespace=True,
-                                header=None, comment='#'))[:,1:47]
-    tstart = time.time()
-
-    with MultiPool() as pool:
-        pwork = partial(worker_m2l, alfvar, key_list)
-        ml_res = pool.map(pwork, samples)
-    ndur = time.time() - tstart
-    pool.close()
-    print('\ncalculating m2l in .mcmc file: {:.2f}minutes'.format(ndur/60.))
-    np.savez('{0}results_dynesty/{1}_mcmcm2l_b.npz'.format(ALFPY_HOME, outname), m2l=ml_res)
-    return np.array(ml_res)

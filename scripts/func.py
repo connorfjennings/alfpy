@@ -33,7 +33,7 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
     
     # ---------------------------------------------------------------- #    
     if prhiarr is None or prloarr is None:
-        _, prlo, prhi = set_pinit_priors(alfvar)
+        _, prlo, prhi = set_pinit_priors(alfvar.imf_type)
         prloarr = str2arr(switch=1, instr = prlo)
         prhiarr = str2arr(switch=1, instr = prhi)
     

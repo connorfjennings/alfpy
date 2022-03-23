@@ -80,6 +80,17 @@ def read_data(alfvar, sigma=None, velz=None):
     alfvar.data.flx[alfvar.data.wgt==0] = np.nan
     alfvar.data.err[alfvar.data.wgt==0] = np.nan
     
+      
+    # ---- moved from alf.py ---- #
+    # ---- interpolate the sky emission model onto the observed wavelength grid
+    if alfvar.observed_frame == 1:
+        alfvar.data.sky = linterp(alfvar.lsky, alfvar.fsky, alfvar.data.lam)
+        alfvar.data.sky[alfvar.data.sky<0] = 0.
+    else:
+        alfvar.data.sky[:] = tiny_number
+    alfvar.data.sky[:] = tiny_number  # ?? why?
+    # --------------------------- #    
+    
     if np.logical_and(sigma is not None, velz is not None):
         return alfvar, isig, ivelz
     

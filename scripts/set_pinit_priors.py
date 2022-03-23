@@ -5,7 +5,7 @@ import math
 
 __all__ = ['set_pinit_priors']
 
-def set_pinit_priors(alfvar, velz=None):
+def set_pinit_priors(imf_type=1):
     """
     ---- define the first position (pos), and the lower and upper bounds
     on the priors (prlo, prhi).  The priors are defined in such a way
@@ -15,13 +15,12 @@ def set_pinit_priors(alfvar, velz=None):
     ---- TYPE(PARAMS) :: test, tprlo, tprhi
     """
 
-    imf_type = alfvar.imf_type
-    fit_type = alfvar.fit_type
-    fit_two_ages = alfvar.fit_two_ages
-    npar = alfvar.npar
-
-    prloarr1, prhiarr1, tprloarr1 = np.zeros((3, npar))
-    testarr1, posarr1, tprhiarr1 = np.zeros((3, npar))
+    #imf_type = alfvar.imf_type
+    fit_type = 0 #alfvar.fit_type
+    fit_two_ages = 1 #alfvar.fit_two_ages
+    #npar = alfvar.npar
+    #prloarr1, prhiarr1, tprloarr1 = np.zeros((3, npar))
+    #testarr1, posarr1, tprhiarr1 = np.zeros((3, npar))
 
     # --------------------------------------------------------------- #
     pos, prlo, prhi =  alfobj(),  alfobj(),  alfobj()

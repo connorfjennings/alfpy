@@ -23,10 +23,11 @@ def tmp_cal(lam, il1, il2, npow=None, npolymax = 10):
     if npow is None:
         # ---- use -1 to be consistent with alf ---- # 
         # ---- -> returned coeff should have the same length ---- #
-        npow = min((il2-il1)//poly_dlam, npolymax) - 1    
+        npow = max(1, min((il2-il1)//poly_dlam, npolymax) - 1)  
     i1 = min(max(locate(lam, il1-buff),0), n1-2)
-    i2 = min(max(locate(lam, il2+buff),1), n1-1)+1   
+    i2 = min(max(locate(lam, il2+buff),1), n1-1)   
     ml = (il1+il2)/2.0
+
     return i1, i2, ml, npow
 
 
@@ -41,7 +42,6 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     #, lam,flx,err,il1,il2,flxout,coeff=None
     return: normed spectra
     """
-    #flxout = np.copy(flx)
     i1, i2, ml, npow = tmp_cal(lam, il1, il2, npow, npolymax)
     
     #!simple linear least squares polynomial fit

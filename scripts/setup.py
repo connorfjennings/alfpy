@@ -253,8 +253,8 @@ def setup(alfvar, onlybasic = False, pool=None):
     alfvar.sspgrid.imfx3 = np.array([0.08,0.10,0.15,0.2,0.25,0.3,0.35,0.4])
 
     # -- find indices of the reference IMF
-    alfvar.imfr1 = locate(alfvar.sspgrid.imfx1, t13+1e-3)
-    alfvar.imfr2 = locate(alfvar.sspgrid.imfx2, t23+1e-3)
+    alfvar.imfr1 = locate(alfvar.sspgrid.imfx1, t13 + 1e-3)
+    alfvar.imfr2 = locate(alfvar.sspgrid.imfx2, t23 + 1e-3)
     alfvar.imfr3 = locate(alfvar.sspgrid.imfx3, alfvar.imflo + 1e-3)
 
     #-------------------------------------------------------------------------!
@@ -353,7 +353,7 @@ def setup(alfvar, onlybasic = False, pool=None):
         strans[:] = 100.0
 
     # -- add all the terms in quad, including a floor of 10 km/s
-    strans = np.sqrt(np.square(strans) + np.square(alfvar.smooth_trans) + 10**2)
+    strans = np.sqrt(np.square(strans) + np.square(alfvar.smooth_trans) + 10.**2)
     
     # -- use the simple version which allows for arrays of arbitrary length
     d1 = alfvar.velbroad_simple

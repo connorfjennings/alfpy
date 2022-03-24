@@ -36,7 +36,7 @@ def set_pinit_priors(imf_type=1):
                 'cuh': (0.4, -0.2), 'srh': (0.4, -0.2), 'bah': (0.4, -0.2),
                 'euh': (0.4, -0.2), 'teff': (80., -40.), 'logfy':(2., -4.),
                 'fy_logage': (0.3, 0.), 'logm7g': (1., -4.), 'hotteff':(5., 15.),
-                'loghot':(1., -4.), #'chi2':(0, 1e33), 
+                'loghot':(1., -4.), #'chi2':(0, 1e33),
                 'sigma':(100., 100.),
                 'sigma2':(100., 100.), 'velz2':(10., -5.), 'logtrans':(4., -4),
                 'logemline_h': (2., -4), 'logemline_oii': (2., -4), 'logemline_oiii': (2., -4),

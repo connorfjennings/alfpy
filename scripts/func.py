@@ -103,6 +103,7 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
             i1 = min(max(locate(data.lam, tl1),0), datasize-2)
             i2 = min(max(locate(data.lam, tl2),1), datasize-1)+1
 
+            #print('func l1[i]', alfvar.nlint, l1[i], l2[i], 'tl1, tl2=', tl1, tl2, 'i1, i2=', i1, i2, oneplusz)
             # ---- !fit a polynomial to the ratio of model and data
             npow, tcoeff, poly = contnormspec(data.lam, data.flx/zmspec, 
                                  data.err/zmspec, tl1, tl2, 

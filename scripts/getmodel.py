@@ -384,17 +384,19 @@ def getmodel(pos, alfvar, mw = 0):
                 spec += tmp_add_em(emnormall[i], alfvar.emlines[i], pos.velz2, pos.sigma2, sspgrid.lam)
 
     
-    # velocity broaden the model       
+    # velocity broaden the model   
     if pos.sigma > 5. and alfvar.fit_indices==0:
         if alfvar.fit_hermite == 1:
             hermite[0] = pos.h3
             hermite[1] = pos.h4
             spec = velbroad(sspgrid.lam, spec, pos.sigma, 
-                            alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
+                            alfvar.l1[0]-100, alfvar.l2[alfvar.nlint-1]+100, 
                             hermite, velbroad_simple=1)
             
         else:
-            spec = velbroad(sspgrid.lam, spec, pos.sigma, alfvar.l1[0], alfvar.l2[alfvar.nlint-1], velbroad_simple = 0)
+            spec = velbroad(sspgrid.lam, spec, pos.sigma, 
+                            alfvar.l1[0]-100, alfvar.l2[alfvar.nlint-1]+100, 
+                            velbroad_simple = 0)
 
 
     # ---- apply an atmospheric transmission function only in full mode

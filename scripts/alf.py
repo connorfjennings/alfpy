@@ -181,7 +181,7 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
 
             results = pickle.load(open('{0}results_dynesty/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
             # ---- post process ---- #
-            calm2l_dynesty(results, alfvar, use_keys=use_keys, outname=filename+'_'+tag, pool=pool)
+            calm2l_dynesty(results, global_alfvar, use_keys=use_keys, outname=filename+'_'+tag, pool=pool)
 
 # -------------------------------- #
 # ---- command line arguments ---- #

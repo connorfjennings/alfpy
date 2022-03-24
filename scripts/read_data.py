@@ -52,7 +52,7 @@ def read_data(alfvar, sigma=None, velz=None):
     header = header.astype(float)
     nlint = header.shape[0]
     if nlint == 0:
-        header = [np.array(0.40, 0.47), np.array(0.47, 0.55)]
+        header = np.array([np.array([0.40, 0.47]), np.array([0.47, 0.55])])
         nlint = 2
        
     # --- convert from um to A.

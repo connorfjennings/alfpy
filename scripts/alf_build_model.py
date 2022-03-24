@@ -56,8 +56,9 @@ def build_alf_model(filename, tag='', pool_type='mpi'):
             os.makedirs(ALFPY_HOME+ifolder)
     
     pickle_model_name = '{0}alfvar_models/alfvar_model_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
-    print('No existing model array.  We will create one and pickle dump it to \n'+pickle_model_name)
+    print('We will create one and pickle dump it to \n'+pickle_model_name)
     alfvar = ALFVAR()
+
     global use_keys
     use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
     

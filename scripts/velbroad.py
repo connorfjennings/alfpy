@@ -67,8 +67,11 @@ def fast_smooth1_part(lam, inspec, minl, maxl, h3, h4, sigmal, sigmal_arr=None):
 def fast_smooth2_part(lam, inspec, ind1, ind2, sigma):
     m = 6.0
     n2 = ind2-ind1
-    dlstep = (math.log(lam[ind2])-math.log(lam[ind1]))/n2
-    lnlam = np.arange(n2)*dlstep+math.log(lam[ind1])
+    
+    #dlstep = (math.log(lam[ind2])-math.log(lam[ind1]))/n2
+    #lnlam = np.arange(n2)*dlstep+math.log(lam[ind1])
+    dlstep = (math.log(lam[ind2])-math.log(lam[ind1]))/(n2+1)
+    lnlam = np.arange(1, n2+1+1)*dlstep+math.log(lam[ind1])
     outspec = np.copy(inspec)
     
     psig = sigma*2.35482/clight*1e5/dlstep/2./(-2.0*math.log(0.5))**0.5 #! equivalent sigma for kernel
@@ -78,15 +81,17 @@ def fast_smooth2_part(lam, inspec, ind1, ind2, sigma):
         nspec = np.copy(tspec)
             
         psf = 1.0/math.sqrt(2*mypi)/psig*np.array([math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
+        #psf = 1.0/math.sqrt(2*mypi)/psig*np.array([math.exp(-((i-grange-1)/psig)**2/2.0) for i in range(1, 2*grange+2)]) 
         psf= psf/psf.sum()
-            
+
         nspec[grange: n2-grange] = np.array([(psf*tspec[i-grange:i+grange+1]).sum() for i in range(grange, n2-grange)])
+        #nspec[grange: n2-grange] = np.array([(psf*tspec[i-grange:i+grange+1]).sum() for i in range(grange, n2-grange)])
         outspec[ind1:ind2] = np.interp(x=lam[ind1:ind2], xp=np.exp(lnlam), fp=nspec)
-        # scipy.interpolate.interp1d not supported by numba
             
     return outspec
 
 
+        
 #-------------------------------------------------------------------------!
 @jit(nopython=True,fastmath=True) 
 def velbroad(lam, spec, sigma, minl= None, maxl= None, 
@@ -129,7 +134,6 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
         
         tspec = np.copy(spec)
         sigmal = sigma
-        #sigmal_arr_exist = False
         if (ires is not None) and len(ires) == 2:
             h3 = ires[0]
             h4 = ires[1]
@@ -146,8 +150,8 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
     else:
         # ---- !fancy footwork to allow for input spectra of either length       
         #ind1, ind2 = np.argmin(np.abs(lam-minl)), np.argmin(np.abs(lam-maxl))
-        ind1 = find_nearest(lam,minl)
-        ind2 = find_nearest(lam,maxl)
+        ind1 = find_nearest(lam, minl)
+        ind2 = find_nearest(lam, maxl+500)
         spec = fast_smooth2_part(lam, spec, ind1, ind2, sigma)
     
     return spec

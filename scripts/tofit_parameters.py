@@ -32,13 +32,13 @@ tofit_params = {
     'bah': (True, 0.0),
     'euh': (True, 0.0),
     # -------------------------------- #
-    'teff': (False, 0.0), #23
+    'teff': (False, 0.0), #23, # killed off in alf.f90
     'imf1': (True, 1.3), 
     'imf2': (True, 2.3), 
     'logfy': (True, -5.9), 
     'sigma2': (True, 10.1),
     'velz2': (True, 0.0),
-    'logm7g': (True, -5.5), 
+    'logm7g': (True, -6.+1e-5), # killed off in alf.f90
     'hotteff': (True, 8.0+1e-5),
     'loghot': (True, -6.0+1e-5),
     'fy_logage': (True, 0.3),

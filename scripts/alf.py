@@ -66,7 +66,7 @@ def func_2min(inarr):
 
 
 # -------------------------------------------------------- #
-def alf(filename, tag='', run='dynesty', pool_type='mpi'):
+def alf(filename, tag='', run='dynesty', pool_type='multiprocessing'):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -187,18 +187,15 @@ def alf(filename, tag='', run='dynesty', pool_type='mpi'):
 # ---- command line arguments ---- #
 # -------------------------------- #
 if __name__ == "__main__":
-    ncpu = os.getenv('SLURM_NTASKS')
-    ncpu_pertask = os.getenv('SLURM_CPUS_PER_TASK')
+    import multiprocessing
+
+    ncpu = os.getenv('SLURM_CPUS_PER_TASK')
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
-        import multiprocessing
         pool_type = 'multiprocessing'
         ncpu = multiprocessing.cpu_count()
-    elif ncpu_pertask>ncpu:
-        pool_type = 'multiprocessing'
-        ncpu = ncpu_pertask
     else:
-        pool_type = 'mpi'
+        pool_type = 'multiprocessing'
 
     print('\npool type:', pool_type)      
     print('ncpu=', ncpu)

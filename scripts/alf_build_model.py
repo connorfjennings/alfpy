@@ -24,7 +24,7 @@ def func_2min(inarr):
                 prloarr=global_prloarr,
                )
 # -------------------------------------------------------- #
-def build_alf_model(filename, tag='', pool_type='mpi'):
+def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -77,10 +77,10 @@ def build_alf_model(filename, tag='', pool_type='mpi'):
 
     # ---- type of IMF to fit
     # ---- 0=1PL, 1=2PL, 2=1PL+cutoff, 3=2PL+cutoff, 4=non-parametric IMF
-    alfvar.imf_type = 1
+    alfvar.imf_type = 3
 
     # ---- are the data in the original observed frame?
-    alfvar.observed_frame = 0
+    alfvar.observed_frame = 1
     alfvar.mwimf = 0  #force a MW (Kroupa) IMF
 
     # ---- fit two-age SFH or not?  (only considered if fit_type=0)
@@ -94,7 +94,7 @@ def build_alf_model(filename, tag='', pool_type='mpi'):
     alfvar.extmlpr = 0
 
     # ---- set initial params, step sizes, and prior ranges
-    _, prlo,prhi = set_pinit_priors(alfvar.imf_type)
+    _, prlo, prhi = set_pinit_priors(alfvar.imf_type)
     
     # ---- change the prior limits to kill off these parameters
     prhi.logm7g = -5.0
@@ -267,18 +267,13 @@ def build_alf_model(filename, tag='', pool_type='mpi'):
 # ---- command line arguments ---- #
 # -------------------------------- #
 if __name__ == "__main__":
-    ncpu = os.getenv('SLURM_NTASKS')
-    ncpu_pertask = os.getenv('SLURM_CPUS_PER_TASK')
+    ncpu = os.getenv('SLURM_CPUS_PER_TASK')
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
-        import multiprocessing
         pool_type = 'multiprocessing'
         ncpu = multiprocessing.cpu_count()
-    elif ncpu_pertask>ncpu:
-        pool_type = 'multiprocessing'
-        ncpu = ncpu_pertask
     else:
-        pool_type = 'mpi'
+        pool_type = 'multiprocessing'
 
     print('\npool type:', pool_type)
     print(ncpu, 'cores')

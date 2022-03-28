@@ -371,9 +371,10 @@ def getmodel(pos, alfvar, mw = 0):
                                       pos.logemline_h, pos.logemline_h, pos.logemline_h, 
                                       pos.logemline_h, pos.logemline_h, pos.logemline_h])
             emnormall *= np.array([1./11.21, 1./6.16, 1./2.87, 1./3., 
-                                   1., 1., 1./2.95, 1., 1., 1., 0.77, 
-                                   1., 1.35, 1./65, 1./55, 1./45, 1./35, 
-                                   1./25, 1./18])
+                                   1., 1., 1./2.95, 
+                                   1., 1., 1., 0.77, 
+                                   1., 1.35, 1./65., 1./55., 1./45., 1./35., 
+                                   1./25., 1./18.])
 
             for i in range(alfvar.neml):
                 # ---- allow the em lines to be offset in velocity from the continuum

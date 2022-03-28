@@ -1,4 +1,5 @@
 import os, sys, copy, pickle, numpy as np
+import matplotlib.pyplot as plt
 import emcee, time
 import dynesty
 from dynesty import NestedSampler
@@ -66,7 +67,7 @@ def func_2min(inarr):
 
 
 # -------------------------------------------------------- #
-def alf(filename, tag='', run='dynesty', pool_type='multiprocessing'):
+def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chains=True):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -153,15 +154,140 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing'):
                 
             print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
             tstart = time.time()
-            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool)
-            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
-            print('mean acc fraction %.3f' %np.nanmean(sampler.acceptance_fraction))
+
+            if save_chains:
+                sample_file = '{0}results_emcee/{1}_{2}.h5'.format(ALFPY_HOME, filename, tag)
+                backend = emcee.backends.HDFBackend(sample_file, name = 'burn in')
+                backend.reset(nwalkers, npar)
+            else:
+                backend = None
+
+
+            # ---------------- run initial burn-in ----------------- #
+            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
+                                            moves=[emcee.moves.StretchMove(a=1.4)],
+                                            backend=backend)
+
+            p_mean_last = pos_emcee_in.mean(0)
+            log_prob_mean_last = -np.inf
+            for it, sample in enumerate(sampler.sample(pos_emcee_in, iterations=3000, progress=True)):
+                if (it % 100): continue
+                ndur = (time.time() - tstart)/60
+                p_mean = sampler.get_chain(flat=True, thin=1, discard = it-100).mean(0)
+                log_prob_mean = sampler.get_log_prob(discard=it).mean()
+                # delta log probability
+                dlogP = np.log10(np.abs((log_prob_mean - log_prob_mean_last) / log_prob_mean))
+                # mean change in each parameter
+                dmean = np.abs(np.mean((p_mean-p_mean_last)/p_mean))
+                print(f'iter = {it}, ' +
+                      f'acceptance fraction = {sampler.acceptance_fraction.mean():.2f}, ' +
+                      f'd(logP) = {dlogP:0.2f}, ' +
+                      f'd(mean) = {dmean:0.4f}, ' +
+                      f'time={ndur:.2f}min',
+                      flush=True)
+
+                if (it>500)&(dmean < 0.03)&(dlogP<-4): break 
+
+                p_mean_last = p_mean
+                log_prob_mean_last = log_prob_mean
+
+
+            # ---------------- run burn-in ----------------- #
+            # take best walker and re-initialize there
+            last_state = sampler.get_last_sample()
+            best_walker = last_state.coords[last_state.log_prob.argmax()]
+
+            # reinitialize from best walker (within +/- 5% of total prior range)
+            for i in range(npar):
+                tem_prior = np.take(
+                    global_all_prior, 
+                    all_key_list.index(use_keys[i])
+                )
+                min_ = max(global_prhiarr[i], np.array(best_walker)[i]-0.05*np.diff(tem_prior.range))
+                max_ = min(global_prhiarr[i], np.array(best_walker)[i]+0.05*np.diff(tem_prior.range))
+                pos_emcee_in[:, i] = np.array(
+                    [np.random.uniform(tem_prior.range[0], 
+                                    tem_prior.range[1], 
+                                    nwalkers)])
+
+            if save_chains:
+                backend = emcee.backends.HDFBackend(sample_file, name=f"samples")
+                backend.reset(nwalkers, npar)
+            
+            
+            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
+                                            moves=[emcee.moves.StretchMove(a=1.4)],
+                                            backend=backend)
+
+            old_tau = np.inf
+            num = it
+            converged = False
+            for j, sample in enumerate(sampler.sample(pos_emcee_in, iterations=60000, progress=True)):
+                it = num+j
+                if it%100: continue
+                ndur = (time.time() - tstart)/60
+                # use the tau (without discarding) to determine how much to remove
+                tau = sampler.get_autocorr_time(discard=int(np.max(old_tau)) if \
+                                                np.all(np.isfinite(old_tau)) else 0,
+                                                tol=0) 
+
+                print(f'iter = {it}, ' +
+                      f"tau = {np.max(tau):.0f}, " +
+                      f"acceptance fraction = {sampler.acceptance_fraction.mean():.2f}, " +
+                      f"dtau = {np.max((tau-old_tau)/tau):.2f}, " +
+                      f"it/tau = {np.min(it/tau):.1f}, "+
+                      f"time={ndur:.2f}min",
+                      flush=True)
+
+                converged = np.all(tau * 20 < it)
+                converged &= np.all((tau-old_tau)/tau < 0.01)
+                old_tau = tau
+
+                if converged: break
+
+                # plot chain update!
+                if it % 1000:
+                    continue
+                samples = sampler.get_chain(thin=int(np.max(tau) / 2))
+                nlabels = len(use_keys)
+                fig, axes = plt.subplots(nlabels, figsize=(10, 20), sharex=True)
+                for i in range(samples.shape[2]):
+                    ax = axes[i]
+                    ax.plot(samples[:, :, i], "k", alpha=0.3)
+                    ax.set_ylabel(use_keys[i])
+                    ax.yaxis.set_label_coords(-0.1, 0.5)
+                axes[-1].set_xlabel("step number")
+                plt.savefig(f'{ALFPY_HOME}results/check_chains_{filename}_{tag}.png',dpi=300)
+                plt.close('all')
+
+
             ndur = time.time() - tstart
             print('\n Total time for emcee {:.2f}min'.format(ndur/60))
             res = sampler.get_chain(discard = nburn) # discard: int, burn-in
             prob = sampler.get_log_prob(discard = nburn)
             pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
             pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+            
+            # get model spectra for best 
+            idx_min_prob = np.where(prob == np.amin(prob))
+            _, min_prob_spec = func(global_alfvar, res[idx_min_prob][0], prhiarr=global_prhiarr,
+                                prloarr=global_prloarr, usekeys=use_keys,
+                                    funit=True)
+            
+            mcmc = res.reshape(res.shape[0]*res.shape[1], res.shape[2])
+            pcs = np.percentile(mcmc,[5,16,50,84,95],axis=0)
+            specs = {'wave':global_alfvar.data.lam,
+                    'flux':global_alfvar.data.flx,
+                    'err':global_alfvar.data.err,
+                    'min_prob':min_prob_spec}
+            for p in pcs:
+                _, spec = func(global_alfvar, pcs[0], prhiarr=global_prhiarr,
+                                prloarr=global_prloarr, usekeys=use_keys,
+                                    funit=True)
+                specs[str(p)] = spec
+
+            pickle.dump(specs, open(f'{ALFPY_HOME}results/specs_emcee_{filename}.p', "wb" ) )
+
 
         # ---------------------------------------------------------------- #
         elif run == 'dynesty':

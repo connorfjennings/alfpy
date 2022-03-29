@@ -110,7 +110,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing'):
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 0    # -- length of chain burn-in
+    nburn = 10000    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
     npar = len(use_keys)
     all_key_list = list(tofit_params.keys())

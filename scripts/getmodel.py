@@ -232,7 +232,7 @@ def getmodel(pos, alfvar, mw = 0):
                         (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
                         dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
                         (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
-        
+  
 
     # ---- vary young population - both fraction and age
     # ---- only include these parameters in the "full" model
@@ -412,7 +412,7 @@ def getmodel(pos, alfvar, mw = 0):
         spec = spec*(1+(tmp_ftrans_o2-1)*fast_np_power(10, pos.logtrans))
     
     # ---- apply a template error function
-    if alfvar.apply_temperrfcn==1:
-        spec = spec / alfvar.temperrfcn
-                       
+    #if alfvar.apply_temperrfcn==1:
+    #    spec = spec / alfvar.temperrfcn
+                        
     return spec                    

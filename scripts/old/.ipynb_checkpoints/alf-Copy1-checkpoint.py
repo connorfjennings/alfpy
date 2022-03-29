@@ -1,33 +1,76 @@
-# ---- build alfvar model and pickle dump it
-
 import os, sys, copy, pickle, numpy as np
-import time
+import emcee, time
+import dynesty
+from dynesty import NestedSampler
+
 from tofit_parameters import tofit_params
 from func import func
 from alf_vars import *
-from alf_constants import *
+#from alf_constants import *
 from priors import TopHat,ClippedNormal
 from read_data import *
-from linterp import *
+from linterp import locate, linterp
 from str2arr import *
-from getvelz import getvelz
+#from getvelz import getvelz
 from setup import *
 from set_pinit_priors import *
+
 from scipy.optimize import differential_evolution
+from post_process import calm2l_dynesty
+
+
 # -------------------------------------------------------- #
-def func_2min(inarr):
+def log_prob(inarr, in_alfvar, usekeys):
+    #res_ = func(global_alfvar, 
+    #            inarr, use_keys,
+    #            prhiarr=global_prhiarr,
+    #            prloarr=global_prloarr)
+    res_ = func(in_alfvar, inarr, usekeys)
+    return -0.5*res_
+
+
+# -------------------------------------------------------- #
+def log_prob_nested(posarr, in_alfvar, in_all_prior, in_usekeys, prhiarr, prloarr):
+    ln_prior = lnprior(posarr, in_all_prior, in_usekeys)
+    if not np.isfinite(ln_prior):
+        return -np.infty
+    res_ = func(in_alfvar, posarr, in_usekeys,  prhiarr, prloarr)
+    return ln_prior-0.5*res_
+
+# -------------------------------------------------------- #
+def prior_transform(unit_coords, in_all_prior, in_usekeys):
+    all_key_list = list(tofit_params.keys())
+    return np.array([in_all_prior[all_key_list.index(ikey)].unit_transform(unit_coords[i]) for i, ikey in enumerate(in_usekeys)])
+
+
+# -------------------------------------------------------- #
+def lnprior(in_arr, in_all_prior, in_usekeys):
+    """
+    - only used for dynesty
+    - INPUT: npar arr (same length as use_keys)
+    - all_priors: priors for all 46 parameter
+    """
+    full_arr = fill_param(in_arr, in_usekeys)
+    lnp = sum([in_all_prior[i_].lnp(iarr_) for i_, iarr_ in enumerate(full_arr)])
+    if np.isfinite(lnp):
+        return 0.0
+    return lnp
+
+
+# -------------------------------------------------------- #
+def func_2min(inarr, alfvar, usekeys, prhiarr, prloarr):
     """
     only optimize the first 4 parameters before running the sampler
     """
-    return func(global_alfvar, inarr, use_keys[:len(inarr)], 
-                prhiarr=global_prhiarr,
-                prloarr=global_prloarr,
-               )
+    return func(alfvar, inarr, usekeys, prhiarr,prloarr)
+
+
 # -------------------------------------------------------- #
-def build_alf_model(filename, tag='', pool_type='multiprocessing'):
+def alf(filename, tag='', run='dynesty', model_arr = None, pool=None):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
+
     Master program to fit the absorption line spectrum, or indices,
     #  of a quiescent (>1 Gyr) stellar population
     # Some important points to keep in mind:
@@ -51,17 +94,27 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     # To Do: let the Fe-peak elements track Fe in simple mode
     """
     ALFPY_HOME = os.environ['ALFPY_HOME']
-    for ifolder in ['alfvar_models', 'results_emcee', 'results_dynesty', 'subjobs']:
-        if os.path.exists(ALFPY_HOME+ifolder) is not True:
-            os.makedirs(ALFPY_HOME+ifolder)
-    
-    pickle_model_name = '{0}alfvar_models/alfvar_model_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
-    print('We will create one and pickle dump it to \n'+pickle_model_name)
-    alfvar = ALFVAR()
 
-    global use_keys
-    use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
-    
+    if model_arr is not None:
+        print('\nPickle loading alf model array: '+model_arr+'\n')
+        alfvar = pickle.load(open(model_arr, "rb" ))
+    else:
+        pickle_model_name = '{0}pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
+        print('No existing model array.  We will create one and pickle dump it to \n'+pickle_model_name)
+        alfvar = ALFVAR()
+
+
+    nmcmc = 200    # -- number of chain steps to print to file
+    # -- inverse sampling of the walkers for printing
+    # -- NB: setting this to >1 currently results in errors in the *sum outputs
+    nsample = 1
+    nburn = 0    # -- length of chain burn-in
+    nwalkers = 512    # -- number of walkers
+
+    nl = alfvar.nl
+    npar = alfvar.npar
+    nfil = alfvar.nfil
+
     #---------------------------------------------------------------!
     #---------------------------Setup-------------------------------!
     #---------------------------------------------------------------!
@@ -80,7 +133,7 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     alfvar.imf_type = 3
 
     # ---- are the data in the original observed frame?
-    alfvar.observed_frame = 1
+    alfvar.observed_frame = 0
     alfvar.mwimf = 0  #force a MW (Kroupa) IMF
 
     # ---- fit two-age SFH or not?  (only considered if fit_type=0)
@@ -94,7 +147,7 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     alfvar.extmlpr = 0
 
     # ---- set initial params, step sizes, and prior ranges
-    _, prlo, prhi = set_pinit_priors(alfvar.imf_type)
+    _, prlo,prhi = set_pinit_priors(alfvar.imf_type)
     
     # ---- change the prior limits to kill off these parameters
     prhi.logm7g = -5.0
@@ -167,57 +220,48 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     print("      mwimf  =",  alfvar.mwimf)
     print("  age-dep Rf =",  alfvar.use_age_dep_resp_fcns)
     print("    Z-dep Rf =",  alfvar.use_z_dep_resp_fcns)
+    print("  Nwalkers   = ",  nwalkers)
+    print("  Nburn      = ",  nburn)
+    print("  Nchain     = ",  nmcmc)
     #print("  Ncores     = ",  ntasks)
     print("  filename   = ",  filename, ' ', tag)
     print(" ************************************")
-    #print('\n\nStart Time ',datetime.now())
 
     #---------------------------------------------------------------!
-    
     # ---- read in the data and wavelength boundaries
     alfvar.filename = filename
     alfvar.tag = tag
-
+        
+        
     if alfvar.fit_indices == 0:
         alfvar = read_data(alfvar)
         # ---- read in the SSPs and bandpass filters
         # ------- setting up model arry with given imf_type ---- #
 
-        if pool_type == 'multiprocessing':
-            from multiprocessing import Pool as to_use_pool        
-        else:
-            from schwimmbad import MPIPool as to_use_pool 
-            
-        pool = to_use_pool()
-        if pool_type == 'mpi':
-            print('pool size', pool.size)
-            if not pool.is_master():
-                pool.wait()
-                sys.exit(0) 
-                
-        print('\nsetting up model arry with given imf_type and input data\n')
-        tstart = time.time()
-        alfvar = setup(alfvar, onlybasic = False, pool = pool)
-        ndur = time.time() - tstart
-        print('\n Total time for setup {:.2f}min'.format(ndur/60))
-
+        if model_arr is None:
+            print('\nsetting up model arry with given imf_type and input data\n')
+            tstart = time.time()
+            alfvar = setup(alfvar, onlybasic = False, pool = pool)
+            pickle_model_name = '{0}pickle/alfvar_sspgrid_{1}.p'.format(ALFPY_HOME, filename)
+            pickle.dump(alfvar, open(pickle_model_name, "wb" ))
+            ndur = time.time() - tstart
+            print('\n Total time for setup {:.2f}min'.format(ndur/60))
 
         ## ---- This part requires alfvar.sspgrid.lam ---- ##
         lam = np.copy(alfvar.sspgrid.lam)
         # ---- interpolate the sky emission model onto the observed wavelength grid
-        # ---- moved to read_data
         if alfvar.observed_frame == 1:
             alfvar.data.sky = linterp(alfvar.lsky, alfvar.fsky, alfvar.data.lam)
             alfvar.data.sky[alfvar.data.sky<0] = 0.
         else:
-            alfvar.data.sky[:] = tiny_number
-        alfvar.data.sky[:] = tiny_number  # ?? why?
+            alfvar.data.sky[:] = 1e-33
+        alfvar.data.sky[:] = 1e-33  # ?? why?
 
         # ---- we only compute things up to 500A beyond the input fit region
         alfvar.nl_fit = min(max(locate(lam, alfvar.l2[-1]+500.0),0),alfvar.nl-1)
         ## ---- define the log wavelength grid used in velbroad.f90
         alfvar.dlstep = (np.log(alfvar.sspgrid.lam[alfvar.nl_fit])-
-                         np.log(alfvar.sspgrid.lam[0]))/(alfvar.nl_fit+1)
+                         np.log(alfvar.sspgrid.lam[0]))/alfvar.nl_fit
 
         for i in range(alfvar.nl_fit):
             alfvar.lnlam[i] = i*alfvar.dlstep + np.log(alfvar.sspgrid.lam[0])
@@ -236,61 +280,136 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     if l2[-1]>np.nanmax(lam) or l1[0]<np.nanmin(lam):
         print('ERROR: wavelength boundaries exceed model wavelength grid')
         print(l2[nlint-1],lam[nl-1],l1[0],lam[0])
-        
-    global global_alfvar, global_prloarr, global_prhiarr
-    global_alfvar = copy.deepcopy(alfvar)
-    global_prloarr = copy.deepcopy(prloarr)
-    global_prhiarr = copy.deepcopy(prhiarr)
-    # -------- optimize the first four parameters -------- #    
-    len_optimize = 4
-    prior_bounds = list(zip(global_prloarr[:len_optimize], global_prhiarr[:len_optimize]))
-    optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
-                                          polish=False, updating='deferred', workers=1)
-    print('optimized parameters', optimize_res)
     
+    use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
+    npar = len(use_keys)
+    print('\nWe are going to fit ', npar, 'parameters\nThey are', use_keys)
+    # -------- optimize the first four parameters -------- #
+    # ==== turn off differential_evolution to compare with alf fortran ==== #
+    len_optimize = 4
+    prior_bounds = list(zip(prloarr[:len_optimize], prhiarr[:len_optimize]))
+    print('prior_bounds:', prior_bounds)
+    optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
+                                          polish=False, updating='deferred', workers=1,
+                                          args = (alfvar, use_keys[:4], prhiarr, prloarr))
+    print('optimized parameters', optimize_res)
+
     # -------- getting priors for the sampler -------- #
-    global global_all_prior  # ---- note it's for all parameters
+      # ---- note it's for all parameters
     all_key_list = list(tofit_params.keys())
     # ---------------- update priors ----------------- #
     prrange = [10, 10, 0.1, 0.1]
-    global_all_prior = [ClippedNormal(np.array(optimize_res.x)[i], prrange[i],
-                                      global_prloarr[i], 
-                                      global_prhiarr[i]) for i in range(len_optimize)] + \
-                       [TopHat(global_prloarr[i+len_optimize], 
-                               global_prhiarr[i+len_optimize]) for i in range(len(all_key_list)-len_optimize)]
-     
-    pickle.dump([alfvar, prloarr, prhiarr, global_all_prior, optimize_res.x], open(pickle_model_name, "wb" ))
-    pool.close()
-
+    all_prior = [ClippedNormal(
+        np.array(optimize_res.x)[i], 
+        prrange[i], prloarr[i], prhiarr[i]) for i in range(len_optimize)] + \
+    [TopHat(
+        prloarr[i+len_optimize], 
+        prhiarr[i+len_optimize]) for i in range(len(all_key_list)-len_optimize)] 
     
+    # ---------------------------------------------------------------- #
+      
+    if run == 'emcee':
+        print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
+        tstart = time.time()
+        pos_emcee_in = np.zeros(shape=(nwalkers, npar))
+        for i in range(npar):
+            if i <4:
+                min_ = max(prloarr[i], np.array(optimize_res.x)[i]-prrange[i])
+                max_ = min(prhiarr[i], np.array(optimize_res.x)[i]+prrange[i])
+                pos_emcee_in[:, i] = np.array([np.random.uniform(min_, max_, nwalkers)])                
+            else:
+                tem_prior = np.take(all_prior, all_key_list.index(use_keys[i]))
+                pos_emcee_in[:, i] = np.array(
+                    [np.random.uniform(tem_prior.range[0], tem_prior.range[1], nwalkers)])
+   
+        #pool = multiprocessing.Pool(ncpu)
+        sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool, 
+                                        args=(alfvar, use_keys))
+        sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
+        #pool.close()
+
+
+        os.system('mkdir -p {0}results_emcee'.format(ALFPY_HOME))
+        ndur = time.time() - tstart
+        print('\n Total time for emcee {:.2f}min'.format(ndur/60))
+        res = sampler.get_chain(discard = nburn) # discard: int, burn-in
+        prob = sampler.get_log_prob(discard = nburn)
+        pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+        pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+
+
+    # ---------------------------------------------------------------- #
+    elif run == 'dynesty':
+        #pool =  multiprocessing.Pool(ncpu)    
+        dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, npar, nlive = int(50*npar),
+                                         sample='rslice', bootstrap=0,pool=pool, #queue_size = ncpu, 
+                                         logl_args = (alfvar, all_prior, use_keys, prhiarr, prloarr), 
+                                         ptform_args = (all_prior, use_keys))
+        ncall = dsampler.ncall
+        niter = dsampler.it - 1
+        tstart = time.time()
+        dsampler.run_nested(dlogz=0.5)
+        ndur = time.time() - tstart
+        print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
+        #pool.close()
+        results = dsampler.results
+        os.system('mkdir -p {0}results_dynesty'.format(ALFPY_HOME))
+        pickle.dump(results, open('{0}results_dynesty/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
+
+        results = pickle.load(open('{0}results_dynesty/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
+        # ---- post process ---- #
+        calm2l_dynesty(results, alfvar, use_keys=use_keys, 
+                       outname=filename+'_'+tag, pool=pool)
+    
+
+
 # -------------------------------- #
 # ---- command line arguments ---- #
 # -------------------------------- #
-if __name__ == "__main__":
-    import multiprocessing
-    ncpu = os.getenv('SLURM_CPUS_PER_TASK')
-    os.environ["OMP_NUM_THREADS"] = "1"
-    if ncpu is None:
-        pool_type = 'multiprocessing'
-        ncpu = multiprocessing.cpu_count()
-    else:
-        pool_type = 'multiprocessing'
 
-    print('\npool type:', pool_type)
+if __name__ == "__main__":  
+    #os.environ["OMP_NUM_THREADS"] = "1"
+    ncpu = os.getenv('SLURM_NTASKS')
+    global alfvar, prloarr, prhiarr
+    global use_keys
+    global all_prior
+    """
+    if ncpu is None:
+        import multiprocessing
+        from multiprocessing import Pool
+        ncpu = multiprocessing.cpu_count()
+        on_cluster = False
+        pool = Pool()
+    else:
+        ncpu = int(ncpu)
+        on_cluster = True
+        from schwimmbad import MPIPool
+        pool = MPIPool()
+        if not pool.is_master():
+            pool.wait()
+            sys.exit(0) 
     print(ncpu, 'cores')
+    """
+    from schwimmbad import MPIPool
+    pool = MPIPool()
+    if not pool.is_master():
+        pool.wait()
+        sys.exit(0) 
     argv_l = sys.argv
-    n_argv = len(argv_l)
     filename = argv_l[1]
     tag = ''
-    if n_argv >= 3:
+    if len(argv_l) >= 3:
         tag = argv_l[2]
+    run = 'emcee'
     print('\nrunning alf:\ninput spectrum:{0}.dat'.format(filename))
+    print('sampler = {0}'.format(run))
 
-    build_alf_model(filename, tag, pool_type = pool_type)
-
-
-
-
+    dir0 = '{0}/pickle/'.format(os.environ['ALFPY_HOME'])
+    alf(filename, 
+        tag,
+        model_arr = "{0}pickle/alfvar_sspgrid_zsol_na+0.0.p".format(os.environ['ALFPY_HOME']),
+        run=run)
+    pool.close()
 
 
 

@@ -1,5 +1,5 @@
 # alfpy
-* This is a python version of absorption line fitter (alf). 
+* This is a python version of the absorption line fitter (alf). 
   The code in `https://github.com/cconroy20/alf/tree/master/src' 
   is almost directly translated. 
 * Available samplers are emcee and dynesty. The code is partially accelerated by numba, parallelized by multiprocessing.

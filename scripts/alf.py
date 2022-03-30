@@ -265,8 +265,8 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
             ndur = time.time() - tstart
             print('\n Total time for emcee {:.2f}min'.format(ndur/60))
 
-            res = sampler.get_chain(discard = nburn) 
-            prob = sampler.get_log_prob(discard = nburn)
+            prob = sampler.get_log_prob(discard=int(5 * np.max(tau)), thin=int(np.max(tau) / 2))
+            res = sampler.get_chain(discard=int(5 * np.max(tau)), thin=int(np.max(tau) / 2))
             pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
             pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
             best_params = res[np.where(prob == prob.max())][0]

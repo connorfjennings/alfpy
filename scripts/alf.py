@@ -204,11 +204,9 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                     global_all_prior, 
                     all_key_list.index(use_keys[i])
                 )
-                min_ = max(global_prloarr[i], np.array(best_walker)[i]-0.05*np.diff(tem_prior.range))
-                max_ = min(global_prhiarr[i], np.array(best_walker)[i]+0.05*np.diff(tem_prior.range))
-                pos_emcee_in[:, i] = np.array(
-                    [np.random.uniform(tem_prior.range[0], 
-                                    tem_prior.range[1], 
+                min_ = max(global_prloarr[i], np.array(best_walker)[i]-0.01*np.diff(tem_prior.range))
+                max_ = min(global_prhiarr[i], np.array(best_walker)[i]+0.01*np.diff(tem_prior.range))
+                pos_emcee_in[:, i] = np.array([np.random.uniform(min_, max_, 
                                     nwalkers)])
 
             if save_chains:
@@ -217,7 +215,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
             
             
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
-                                            moves=[emcee.moves.StretchMove(a=1.1)],
+                                            moves=[emcee.moves.StretchMove(a=1.5)],
                                             backend=backend)
 
             old_tau = np.inf

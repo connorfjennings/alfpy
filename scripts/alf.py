@@ -165,16 +165,17 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
 
             # ---------------- run initial burn-in ----------------- #
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
-                                            moves=[emcee.moves.StretchMove(a=1.4)],
+                                            moves=[emcee.moves.StretchMove(a=1.5)],
                                             backend=backend)
 
             p_mean_last = pos_emcee_in.mean(0)
             log_prob_mean_last = -np.inf
-            for it, sample in enumerate(sampler.sample(pos_emcee_in, iterations=3000, progress=True)):
+            for j, sample in enumerate(sampler.sample(pos_emcee_in, iterations=3000, progress=True)):
+                it = j+1
                 if (it % 100): continue
                 ndur = (time.time() - tstart)/60
                 p_mean = sampler.get_chain(flat=True, thin=1, discard = it-100).mean(0)
-                log_prob_mean = sampler.get_log_prob(discard=it).mean()
+                log_prob_mean = sampler.get_log_prob(discard=it-100).mean()
                 # delta log probability
                 dlogP = np.log10(np.abs((log_prob_mean - log_prob_mean_last) / log_prob_mean))
                 # mean change in each parameter
@@ -186,7 +187,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                       f'time={ndur:.2f}min',
                       flush=True)
 
-                if (it>500)&(dmean < 0.03)&(dlogP<-4): break 
+                if (it>500)&(dmean < 0.01)&(dlogP<-4): break 
 
                 p_mean_last = p_mean
                 log_prob_mean_last = log_prob_mean
@@ -203,7 +204,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                     global_all_prior, 
                     all_key_list.index(use_keys[i])
                 )
-                min_ = max(global_prhiarr[i], np.array(best_walker)[i]-0.05*np.diff(tem_prior.range))
+                min_ = max(global_prloarr[i], np.array(best_walker)[i]-0.05*np.diff(tem_prior.range))
                 max_ = min(global_prhiarr[i], np.array(best_walker)[i]+0.05*np.diff(tem_prior.range))
                 pos_emcee_in[:, i] = np.array(
                     [np.random.uniform(tem_prior.range[0], 
@@ -216,14 +217,14 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
             
             
             sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
-                                            moves=[emcee.moves.StretchMove(a=1.4)],
+                                            moves=[emcee.moves.StretchMove(a=1.1)],
                                             backend=backend)
 
             old_tau = np.inf
             num = it
             converged = False
             for j, sample in enumerate(sampler.sample(pos_emcee_in, iterations=60000, progress=True)):
-                it = num+j
+                it = j+1
                 if it%100: continue
                 ndur = (time.time() - tstart)/60
                 # use the tau (without discarding) to determine how much to remove
@@ -257,7 +258,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                     ax.set_ylabel(use_keys[i])
                     ax.yaxis.set_label_coords(-0.1, 0.5)
                 axes[-1].set_xlabel("step number")
-                plt.savefig(f'{ALFPY_HOME}results/check_chains_{filename}_{tag}.png',dpi=300)
+                plt.savefig(f'{ALFPY_HOME}results_emcee/check_chains_{filename}_{tag}.png',dpi=300)
                 plt.close('all')
 
 
@@ -268,7 +269,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
             pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
             pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
             
-            # get model spectra for best 
+            # get model spectra for best walker
             idx_min_prob = np.where(prob == np.amin(prob))
             _, min_prob_spec = func(global_alfvar, res[idx_min_prob][0], prhiarr=global_prhiarr,
                                 prloarr=global_prloarr, usekeys=use_keys,
@@ -286,7 +287,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                                     funit=True)
                 specs[str(p)] = spec
 
-            pickle.dump(specs, open(f'{ALFPY_HOME}results/specs_emcee_{filename}.p', "wb" ) )
+            pickle.dump(specs, open(f'{ALFPY_HOME}results_emcee/specs_emcee_{filename}.p', "wb" ) )
 
 
         # ---------------------------------------------------------------- #

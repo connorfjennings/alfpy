@@ -80,8 +80,11 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     alfvar.imf_type = 3
 
     # ---- are the data in the original observed frame?
-    alfvar.observed_frame = 1
+    alfvar.observed_frame = 0
     alfvar.mwimf = 0  #force a MW (Kroupa) IMF
+
+    if alfvar.mwimf:
+        alfvar.imf_type = 1
 
     # ---- fit two-age SFH or not?  (only considered if fit_type=0)
     alfvar.fit_two_ages = 1
@@ -244,6 +247,9 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     # -------- optimize the first four parameters -------- #    
     len_optimize = 4
     prior_bounds = list(zip(global_prloarr[:len_optimize], global_prhiarr[:len_optimize]))
+    
+    if ~alfvar.observed_frame:
+        prior_bounds[0] = (-200,200)
     optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
                                           polish=False, updating='deferred', workers=1)
     print('optimized parameters', optimize_res)

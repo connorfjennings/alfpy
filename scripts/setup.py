@@ -18,11 +18,11 @@ __all__ = ['setup']
 # ---------------------------------------------------------------- #
 # -------- parallelize all velbroad part -------- #
 # ---------------------------------------------------------------- #
-def worker(inlam, sigma0, lam_lo, lam_hi, smooth_arr, inarr, velbroad_simple):
+def worker(inlam, sigma0, lam_lo, lam_hi, smooth_arr, velbroad_simple, inarr):
     """
-    use partial; the last variable is the input spectrum
+    - use partial; the *last variable* has to be the input spectrum
     """
-    return velbroad(inlam, inarr, sigma0, lam_lo, lam_hi, smooth_arr, velbroad_simple = velbroad_simple)
+    return velbroad(inlam, inarr, sigma0, lam_lo, lam_hi, smooth_arr, velbroad_simple)
 
 
 # ---------------------------------------------------------------- #

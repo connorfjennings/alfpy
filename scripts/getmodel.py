@@ -162,6 +162,7 @@ def getmodel(pos, alfvar, mw = 0):
         if alfvar.imf_type in [2, 3]:
             vm3, dm3 = get_dv(sspgrid.logzgrid2, pos.zh, 1.5, -1.0, nzmet3-2,0)
             spec = cal_logsspm(sspgrid.logsspm, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt)
+
             
         elif alfvar.imf_type in [0, 1]:
             spec = cal_logssp(sspgrid.logssp, dx1, dx2, dt, dm, vv1, vv2, vm, vt)
@@ -224,13 +225,14 @@ def getmodel(pos, alfvar, mw = 0):
                         (1-dt)*(1-dm)*np.log10(tmp4) )
 
 
+
     else:
         # ---- compute a Kroupa IMF, line196
         spec = fast_np_power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
                         (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 
                         dt*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm] + 
                         (1-dt)*(1-dm)*sspgrid.logssp[:,imfr1,imfr2,vt,vm] )
-
+  
 
     # ---- vary young population - both fraction and age
     # ---- only include these parameters in the "full" model
@@ -255,7 +257,6 @@ def getmodel(pos, alfvar, mw = 0):
         vr, dr = get_dv(sspgrid.logagegrid_rfcn, 
                         pos.logage, 1.0, 0.0, 
                         alfvar.nage_rfcn-2, 0)
-
         
     # ---- vary metallicity in the response functions, line 221
     if alfvar.use_z_dep_resp_fcns == 0:
@@ -264,8 +265,7 @@ def getmodel(pos, alfvar, mw = 0):
                           1.0, 0.0, nzmet-2, 0)
     else:
         vm2 = vm
-        dm2 = dm
-
+        dm2 = dm 
 
     # ---- Only sigma, velz, logage, and [Z/H] are fit when either
     # ---- fitting in Powell mode or "super simple" mode
@@ -296,6 +296,7 @@ def getmodel(pos, alfvar, mw = 0):
         spec *= add_response(pos.tih, 0.3,dr,vr,dm2,vm2, 
                             sspgrid.solar, sspgrid.tip, sspgrid.tim)
         #vary [Na/H] (special case)
+
         if pos.nah < 0.3:
             spec *= add_response(pos.nah, 0.3, dr,vr,dm2,vm2, 
                                 sspgrid.solar,sspgrid.nap,sspgrid.nam)
@@ -310,7 +311,7 @@ def getmodel(pos, alfvar, mw = 0):
             spec *= add_na_03(pos.nah, 0.6, dr,vr,dm2,vm2, 
                               sspgrid.solar, sspgrid.nap6, sspgrid.nap9)
 
-
+        
     # ---- only include these parameters in the "full" model, line325
     if alfvar.fit_type==0 and alfvar.powell_fitting==0:
                    
@@ -359,7 +360,7 @@ def getmodel(pos, alfvar, mw = 0):
         spec *= add_response(pos.bah,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.bap,sspgrid.bam)
         # ---- vary [Eu/H]
         spec *= add_response(pos.euh,0.3, dr,vr,dm2,vm2,sspgrid.solar,sspgrid.eup)
-
+        
         
         #add emission lines
         if alfvar.maskem==0:
@@ -384,21 +385,21 @@ def getmodel(pos, alfvar, mw = 0):
                 #spec += emnormall[i] * np.exp(-(sspgrid.lam-ve)**2/lsig**2/2.0)
                 spec += tmp_add_em(emnormall[i], alfvar.emlines[i], pos.velz2, pos.sigma2, sspgrid.lam)
 
-    
+        
     # velocity broaden the model   
     if pos.sigma > 5. and alfvar.fit_indices==0:
         if alfvar.fit_hermite == 1:
             hermite[0] = pos.h3
             hermite[1] = pos.h4
             spec = velbroad(sspgrid.lam, spec, pos.sigma, 
-                            alfvar.l1[0]-100, alfvar.l2[alfvar.nlint-1]+100, 
+                            alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
                             hermite, velbroad_simple=1)
             
         else:
             spec = velbroad(sspgrid.lam, spec, pos.sigma, 
-                            alfvar.l1[0]-100, alfvar.l2[alfvar.nlint-1]+100, 
+                            alfvar.l1[0], alfvar.l2[alfvar.nlint-1], 
                             velbroad_simple = 0)
-
+    
 
     # ---- apply an atmospheric transmission function only in full mode
     # ---- note that this is done *after* velocity broadening
@@ -409,14 +410,9 @@ def getmodel(pos, alfvar, mw = 0):
         tmp_ftrans_o2  = linterp(xin=tmp_ltrans, yin=sspgrid.atm_trans_o2, xout=sspgrid.lam)
         spec = spec*(1+(tmp_ftrans_h2o-1)*fast_np_power(10, pos.logtrans))
         spec = spec*(1+(tmp_ftrans_o2-1)*fast_np_power(10, pos.logtrans))
-
+    
     # ---- apply a template error function
-    if alfvar.apply_temperrfcn==1:
-        spec = spec / alfvar.temperrfcn
-                             
+    #if alfvar.apply_temperrfcn==1:
+    #    spec = spec / alfvar.temperrfcn
+                        
     return spec                    
-                             
-                             
-                             
-                             
-                             

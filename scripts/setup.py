@@ -18,11 +18,11 @@ __all__ = ['setup']
 # ---------------------------------------------------------------- #
 # -------- parallelize all velbroad part -------- #
 # ---------------------------------------------------------------- #
-def worker(inlam, sigma0, lam_lo, lam_hi, smooth_arr, inarr):
+def worker(inlam, sigma0, lam_lo, lam_hi, smooth_arr, velbroad_simple, inarr):
     """
-    use partial; the last variable is the input spectrum
+    - use partial; the *last variable* has to be the input spectrum
     """
-    return velbroad(inlam, inarr, sigma0, lam_lo, lam_hi, smooth_arr, velbroad_simple = 1)
+    return velbroad(inlam, inarr, sigma0, lam_lo, lam_hi, smooth_arr, velbroad_simple)
 
 
 # ---------------------------------------------------------------- #
@@ -39,6 +39,9 @@ def setup(alfvar, onlybasic = False, pool=None):
     ftrans_h2o = np.zeros(ntrans)
     ftrans_o2  = np.zeros(ntrans)
     strans     = np.zeros(ntrans)
+
+    velbroad_simple = alfvar.fit_hermite
+
 
     nstart, nl = alfvar.nstart, alfvar.nl
     nimf, nimfoff = alfvar.nimf, alfvar.nimfoff
@@ -390,7 +393,7 @@ def setup(alfvar, onlybasic = False, pool=None):
     strans_ = linterp(ltrans, strans, alfvar.lsky)
     alfvar.fsky = velbroad(lam = alfvar.lsky, spec = alfvar.fsky,
                            sigma = sig0, minl = lamlo, maxl = lamhi,
-                           ires = strans_, velbroad_simple =1)
+                           ires = strans_, velbroad_simple = 1)
     alfvar.fsky = alfvar.fsky / np.nanmax(alfvar.fsky)
 
     #-------------------------------------------------------------------------!
@@ -421,7 +424,7 @@ def setup(alfvar, onlybasic = False, pool=None):
                    'nip','cop','eup','srp','kp','vp','cup','nap6','nap9']
               
         tstart = time.time()
-        pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth)
+        pwork = partial(worker, alfvar.sspgrid.lam, sig0, lamlo, lamhi, smooth, velbroad_simple)
         
         # ---- define partial worker for all velbroad---- #
         for iattr in temlist:
@@ -441,7 +444,8 @@ def setup(alfvar, onlybasic = False, pool=None):
 
             
         alfvar.sspgrid.m7g = velbroad(alfvar.sspgrid.lam, alfvar.sspgrid.m7g,
-                                          sig0, lamlo, lamhi, smooth, velbroad_simple = 1)
+                                          sig0, lamlo, lamhi, smooth, 
+                                      velbroad_simple = velbroad_simple)
 
         
         # ---- smooth the standard two-part power-law IMF models ---- #

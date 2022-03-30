@@ -30,21 +30,21 @@ paramdict = {'velz':0.0, 'sigma':0.0, 'logage':1.0, 'zh':0.0, 'feh':0.0, 'ah':0.
 #@jitclass(alfparam_type)
 class ALFPARAM(object):  
     def __init__(self):
-        self.velz = 0.0; self.sigma = 0.0; self.logage = 1.0
-        self.zh = 0.0; self.feh = 0.0; self.ah = 0.0
-        self.ch = 0.0; self.nh = 0.0; self.nah = 0.0
-        self.mgh = 0.0; self.sih = 0.0; self.kh = 0.0
-        self.cuh = 0.0; self.srh = 0.0; self.bah = 0.0
-        self.euh = 0.0; self.teff = 0.0; self.imf1 = 1.3
-        self.imf2 = 2.3;self.logfy=-4.0; self.sigma2 = 0.0
-        self.velz2 = 0.0; self.logm7g = -4.0; self.hotteff = 20.0
-        self.loghot = -4.0;self.fy_logage=0.3; self.logtrans=-4.0
-        self.logemline_h = -4.0; self.logemline_oiii=-4.0
-        self.logemline_sii = -4.0; self.logemline_ni=-4.0
-        self.logemline_nii = -4.0; self.logemline_oii=-4.0
-        self.jitter=1.0; self.imf3 = 0.08
-        self.logsky = -4.0; self.imf4 = 4.0
-        self.h3 = 0.0; self.h4=0.0
+        self.velz = 0.0; self.sigma = 0.0; self.logage = 1.0;
+        self.zh = 0.0; self.feh = 0.0; self.ah = 0.0; self.cah = 0.0;
+        self.ch = 0.0; self.nh = 0.0; self.nah = 0.0;
+        self.mgh = 0.0; self.sih = 0.0; self.kh = 0.0;
+        self.cuh = 0.0; self.srh = 0.0; self.bah = 0.0;
+        self.euh = 0.0; self.teff = 0.0; self.imf1 = 1.3;
+        self.imf2 = 2.3;self.logfy=-4.0; self.sigma2 = 0.0;
+        self.velz2 = 0.0; self.logm7g = -4.0; self.hotteff = 20.0;
+        self.loghot = -4.0;self.fy_logage=0.3; self.logtrans=-4.0;
+        self.logemline_h = -4.0; self.logemline_oiii=-4.0;
+        self.logemline_sii = -4.0; self.logemline_ni=-4.0;
+        self.logemline_nii = -4.0; self.logemline_oii=-4.0;
+        self.jitter=1.0; self.imf3 = 0.08;
+        self.logsky = -4.0; self.imf4 = 4.0;
+        self.h3 = 0.0; self.h4=0.0;
         #self.chi2 = 1e33 
 
         

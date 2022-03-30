@@ -2,7 +2,6 @@ import numpy as np
 from linterp import locate
 import math
 from numba import jit
-#from velbroad import find_nearest
 
 __all__ = ['contnormspec']
 # ------------------------------------------------------------------------- 

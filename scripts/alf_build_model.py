@@ -220,7 +220,7 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
         alfvar.nl_fit = min(max(locate(lam, alfvar.l2[-1]+500.0),0),alfvar.nl-1)
         ## ---- define the log wavelength grid used in velbroad.f90
         alfvar.dlstep = (np.log(alfvar.sspgrid.lam[alfvar.nl_fit])-
-                         np.log(alfvar.sspgrid.lam[0]))/alfvar.nl_fit
+                         np.log(alfvar.sspgrid.lam[0]))/(alfvar.nl_fit+1)
 
         for i in range(alfvar.nl_fit):
             alfvar.lnlam[i] = i*alfvar.dlstep + np.log(alfvar.sspgrid.lam[0])
@@ -273,6 +273,7 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
 # ---- command line arguments ---- #
 # -------------------------------- #
 if __name__ == "__main__":
+    import multiprocessing
     ncpu = os.getenv('SLURM_CPUS_PER_TASK')
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:

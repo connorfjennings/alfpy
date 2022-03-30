@@ -38,7 +38,7 @@ tofit_params = {
     'logfy': (True, -5.9), 
     'sigma2': (True, 10.1),
     'velz2': (True, 0.0),
-    'logm7g': (True, -6.+1e-5), # killed off in alf.f90
+    'logm7g': (False, -6.+1e-5), # killed off in alf.f90
     'hotteff': (True, 8.0+1e-5),
     'loghot': (True, -6.0+1e-5),
     'fy_logage': (True, 0.3),
@@ -52,7 +52,7 @@ tofit_params = {
     # -------------------------------- #
     'logtrans': (False, -5.9), #39 
     'jitter': (True, 1.0), 
-    'logsky': (False, -8.9), 
+    'logsky': (False, -5.9), 
     'imf3': (True, 0.08+1e-5), 
     'imf4': (False, 0.0), 
     'h3': (False, 0.0),

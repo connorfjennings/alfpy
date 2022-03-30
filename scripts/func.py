@@ -103,7 +103,6 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
             i1 = min(max(locate(data.lam, tl1),0), datasize-2)
             i2 = min(max(locate(data.lam, tl2),1), datasize-1)+1
 
-            #print('func l1[i]', alfvar.nlint, l1[i], l2[i], 'tl1, tl2=', tl1, tl2, 'i1, i2=', i1, i2, oneplusz)
             # ---- !fit a polynomial to the ratio of model and data
             npow, tcoeff, poly = contnormspec(data.lam, data.flx/zmspec, 
                                  data.err/zmspec, tl1, tl2, 
@@ -128,6 +127,7 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
             else:
                 # ---- !no jitter in simple mode
                 tchi2 = np.nansum( np.square(flx_i12-mflx_i12)/np.square(err_i12) )
+
             
            
             # ---- !error checking
@@ -154,8 +154,11 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
                     outspec_arr = np.hstack((outspec_arr, combine_i12))
                     
                 # ---- write final results to screen and file
-                print("%.2f um - %.2f um:  rms: %.2f percetn,Chi2/dof: %.2f" 
-                      %(tl1/1e4/oneplusz, tl2/1e4/oneplusz,np.sqrt(np.nansum( (flx_i12/mflx_i12-1)**2 )/(i2-i1+1) )*100, tchi2/(i2-i1)))
+                #print("%.2f um - %.2f um:  rms: %.2f percent,Chi2/dof: %.2f" 
+                #      %(tl1/1e4/oneplusz, 
+                #        tl2/1e4/oneplusz,
+                #        np.sqrt(np.nansum( (flx_i12/mflx_i12 - 1)**2 )/(i2-i1+1) )*100, 
+                #        tchi2/(i2-i1)))
 
 
     if funit == False:

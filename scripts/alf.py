@@ -111,7 +111,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 50000    # -- length of chain burn-in
+    nburn = 10000    # -- length of chain burn-in
     nwalkers = 512    # -- number of walkers
     npar = len(use_keys)
     all_key_list = list(tofit_params.keys())
@@ -264,32 +264,17 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
 
             ndur = time.time() - tstart
             print('\n Total time for emcee {:.2f}min'.format(ndur/60))
-            res = sampler.get_chain(discard = nburn) # discard: int, burn-in
+
+            res = sampler.get_chain(discard = nburn) 
             prob = sampler.get_log_prob(discard = nburn)
             pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
             pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+            best_params = res[np.where(prob == prob.max())][0]
+            _, best_mspec = func(global_alfvar, best_params, use_keys, funit=True)
+            np.savetxt('{0}results_emcee/bestspec_{1}_{2}.dat'.format(ALFPY_HOME, filename, tag),
+                       np.transpose(best_mspec), 
+                       delimiter="     ", fmt='   %12.4f   %12.4E   %12.4E   %12.4E   %12.4E   %12.4E')
             
-            # get model spectra for best walker
-            idx_min_prob = np.where(prob == np.amin(prob))
-            _, min_prob_spec = func(global_alfvar, res[idx_min_prob][0], prhiarr=global_prhiarr,
-                                prloarr=global_prloarr, usekeys=use_keys,
-                                    funit=True)
-            
-            mcmc = res.reshape(res.shape[0]*res.shape[1], res.shape[2])
-            pcs = np.percentile(mcmc,[5,16,50,84,95],axis=0)
-            specs = {'wave':global_alfvar.data.lam,
-                    'flux':global_alfvar.data.flx,
-                    'err':global_alfvar.data.err,
-                    'min_prob':min_prob_spec}
-            for p in pcs:
-                _, spec = func(global_alfvar, pcs[0], prhiarr=global_prhiarr,
-                                prloarr=global_prloarr, usekeys=use_keys,
-                                    funit=True)
-                specs[str(p)] = spec
-
-            pickle.dump(specs, open(f'{ALFPY_HOME}results_emcee/specs_emcee_{filename}.p', "wb" ) )
-
-
         # ---------------------------------------------------------------- #
         elif run == 'dynesty':
             dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, 
@@ -332,7 +317,7 @@ if __name__ == "__main__":
     tag = ''
     if n_argv >= 3:
         tag = argv_l[2]
-    run = 'dynesty'
+    run = 'emcee'
     print('\nrunning alf:\ninput spectrum:{0}.dat'.format(filename))
     print('sampler = {0}'.format(run))
     alf(filename, tag, run=run, pool_type = pool_type)

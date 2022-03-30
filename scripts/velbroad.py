@@ -114,9 +114,10 @@ def fast_smooth2_part(lam, inspec, ind1, ind2, sigma, nl_fit):
     fwhm = sigma*2.35482/clight*1e5/dlstep
     psig = fwhm/2./(-2.0*math.log(0.5))**0.5 #! equivalent sigma for kernel
     grange = math.floor(m*psig) #! range for kernel (-range:range)
-    tspec = np.interp(x=lnlam, xp=np.log(lam), fp= outspec)
+    
     
     if grange >1:
+        tspec = np.interp(lnlam, np.log(lam), outspec)
         nspec = np.copy(tspec)
             
         psf = 1.0/math.sqrt(2*mypi)/psig*np.array([math.exp(-((i-grange)/psig)**2/2.0) for i in range(2*grange+1)]) 
@@ -168,9 +169,11 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
 
     # ---- !compute smoothing the slightly less accurate way
     # ---- !but the **only way** in the case of wave-dep smoothing
+    print(ires)
+    print(velbroad_simple)
     if (velbroad_simple==1) or (ires is not None):
         
-        tspec = np.copy(spec)
+        #tspec = np.copy(spec)
         sigmal = sigma
         if (ires is not None) and len(ires) == 2:
             h3 = ires[0]
@@ -178,7 +181,8 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
                 
         if (ires is not None) and len(ires) == nn:
             sigmal_arr = np.copy(ires)
-            spec = fast_smooth1_part(lam, spec, minl, maxl, h3, h4, sigmal, sigmal_arr=sigmal_arr)
+            spec = fast_smooth1_part(lam, spec, minl, maxl, h3, h4, 
+                                     sigmal, sigmal_arr=sigmal_arr)
                
         else:
             spec = fast_smooth1_part(lam, spec, minl, maxl, h3, h4, sigmal)

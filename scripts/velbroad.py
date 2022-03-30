@@ -169,8 +169,6 @@ def velbroad(lam, spec, sigma, minl= None, maxl= None,
 
     # ---- !compute smoothing the slightly less accurate way
     # ---- !but the **only way** in the case of wave-dep smoothing
-    print(ires)
-    print(velbroad_simple)
     if (velbroad_simple==1) or (ires is not None):
         
         #tspec = np.copy(spec)

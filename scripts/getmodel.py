@@ -239,11 +239,14 @@ def getmodel(pos, alfvar, mw = 0):
     if (alfvar.fit_type==0) and (alfvar.powell_fitting == 0) and (alfvar.fit_two_ages ==1):
         fy = max(min(10**pos.logfy, 1.0), 0.0)
         vy, dy = get_dv(sspgrid.logagegrid, pos.fy_logage, 1.0, -0.3, alfvar.nage-2, 0)
-        
+
         yspec = (dy*dm*sspgrid.logssp[:,imfr1, imfr2, vy+1, vm+1] + 
                  (1-dy)*dm*sspgrid.logssp[:, imfr1, imfr2, vy, vm+1] + 
                  dy*(1-dm)*sspgrid.logssp[:, imfr1, imfr2, vy+1, vm] + 
                  (1-dy)*(1-dm)*sspgrid.logssp[:, imfr1, imfr2, vy, vm])
+        print('fy, vy, dy, vm, dm', fy, vy, dy, vm, dm)
+        print('mean yspec', yspec[100:120])      
+        
         spec = (1-fy)*spec + fy*10**yspec
 
     # ---- vary age in the response functions

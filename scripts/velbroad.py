@@ -9,41 +9,6 @@ mypi   = 3.14159265 #scipy.constants.pi  # pi
 clight = 2.9979E10#scipy.constants.speed_of_light*100  # speed of light (cm/s)
 
 
-# -------------------------------------------------------------------------
-@jit(nopython=True, fastmath=True)
-def prospect_smooth_vel(wave, spec, outwave, sigma, nsigma=10, inres=0):
-    """
-    https://github.com/bd-j/prospector/blob/master/prospect/utils/smoothing.py
-    """
-    m = 6.0
-    nn = len(lam)           
-    if sigmal_arr is not None:
-        xmax = lam * (m*sigmal_arr/clight*1e5+1.0)
-    else:
-        xmax = lam * (m*sigmal/clight*1e5+1.0)
-
-    ih_arr = np.clip(np.array([find_nearest(lam,i) for i in xmax]), None, nn)
-    il_arr = np.clip(2*np.arange(nn) - ih_arr, 0, None)
-    useindex = np.arange(nn)[(lam>=minl)&(lam<=maxl)&(ih_arr != il_arr)]
-    outspec = np.copy(inspec)
-    
-    for i in useindex:
-        ih, il = ih_arr[i], il_arr[i]
-        if sigmal_arr is not None:
-            sigmal = sigmal_arr[i]
-        vel = (lam[i]/lam[il:ih]-1)*clight/1e5
-        temr = vel/sigmal
-        sq_temr = np.square(temr)
-        if (h3 == 0) and (h4 == 0):
-            func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-sq_temr/2) 
-        else:
-            func = 1./math.sqrt(2.*mypi)/sigmal * np.exp(-sq_temr/2) * \
-                    (1 + h3*(2*fast_np_power(temr,3)-3*temr)/math.sqrt(3.) + \
-                    h4*(4*fast_np_power(temr,4)-12*sq_temr+3)/math.sqrt(24.) )
-                
-        func /= np.trapz(y=func, x=vel) #tsum(vel, func)
-        outspec[i] = np.trapz(y=func*inspec[il:ih], x=vel) 
-
 
 # -------------------------------------------------------------------------
 @jit(nopython=True, fastmath=True)
@@ -76,7 +41,7 @@ def fast_smooth1_part(lam, inspec, minl, maxl, h3, h4, sigmal, sigmal_arr=None):
     else:
         xmax = lam * (m*sigmal/clight*1e5+1.0)
 
-    ih_arr = np.clip(np.array([find_nearest(lam,i) for i in xmax]), None, nn)
+    ih_arr = np.clip(np.array([locate(lam,i) for i in xmax]), None, nn)
     il_arr = np.clip(2*np.arange(nn) - ih_arr, 0, None)
     useindex = np.arange(nn)[(lam>=minl)&(lam<=maxl)&(ih_arr != il_arr)]
     outspec = np.copy(inspec)

@@ -147,7 +147,6 @@ def setup(alfvar, onlybasic = False, pool=None):
         getattr(alfvar.sspgrid, iattr)[:,:,alfvar.nzmet-1] = getattr(alfvar.sspgrid, iattr)[:,:,alfvar.nzmet-2]
 
     lam = alfvar.sspgrid.lam
-    print('sspgrid.lam', lam.shape, lam[:5],'...',lam[-5:])
     alfvar.sspgrid.logagegrid_rfcn = np.log10(np.array([1.0, 3.0, 5.0, 9.0, 13.0]))
 
 

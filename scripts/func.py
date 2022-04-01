@@ -70,7 +70,6 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
     # ---- !only compute the model and chi2 if the priors are >0.
     if (pr > tiny_number):
         # ---- !get a new model spectrum
-        #mspec = getmodel_grid(npos, alfvar=alfvar)
         mspec = getmodel(npos, alfvar=alfvar)
         if np.isnan(mspec).any():
             return np.inf

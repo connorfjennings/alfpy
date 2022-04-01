@@ -133,7 +133,7 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
         else:
             ncpu = multiprocessing.cpu_count()
         print('ncpu=', ncpu)
-        # ---------------------------------------------------------------- #
+        # ---------------------------------------------------------------- #        
         if run == 'emcee':
             pos_emcee_in = np.zeros(shape=(nwalkers, npar))
             prrange = [10, 10, 0.1, 0.1]
@@ -145,8 +145,52 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                 else:
                     tem_prior = np.take(
                         global_all_prior, 
-                        all_key_list.index(use_keys[i])
-                    )
+                        all_key_list.index(use_keys[i]))
+                    pos_emcee_in[:, i] = np.array(
+                        [np.random.uniform(tem_prior.range[0], 
+                                           tem_prior.range[1], 
+                                           nwalkers)])
+                
+            print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
+            tstart = time.time()
+            backends_fname = '{0}results_emcee/backend_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
+            backend = emcee.backends.HDFBackend(backends_fname)
+            backend.reset(nwalkers, npar)
+
+            sampler = emcee.EnsembleSampler(
+                nwalkers, npar, log_prob, pool=pool, 
+                moves = [emcee.moves.StretchMove(a=2.0)], 
+                backend = backend
+            )
+            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
+            print('mean acc fraction %.3f' %np.nanmean(sampler.acceptance_fraction))
+            ndur = time.time() - tstart
+            print('\n Total time for emcee {:.2f}min'.format(ndur/60))
+
+            res = sampler.get_chain(discard = nburn) 
+            prob = sampler.get_log_prob(discard = nburn)
+            pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+            pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
+            best_params = res[np.where(prob == prob.max())][0]
+            _, best_mspec = func(global_alfvar, best_params, use_keys, funit=True)
+            np.savetxt('{0}results_emcee/bestspec_{1}_{2}.dat'.format(ALFPY_HOME, filename, tag),
+                       np.transpose(best_mspec), 
+                       delimiter="     ", fmt='   %12.4f   %12.4E   %12.4E   %12.4E   %12.4E   %12.4E')
+            
+            
+        # ---------------------------------------------------------------- #
+        if run == 'emcee_test':
+            pos_emcee_in = np.zeros(shape=(nwalkers, npar))
+            prrange = [10, 10, 0.1, 0.1]
+            for i in range(npar):
+                if i <4:
+                    min_ = max(global_prloarr[i], np.array(optimize_res_x)[i]-prrange[i])
+                    max_ = min(global_prhiarr[i], np.array(optimize_res_x)[i]+prrange[i])
+                    pos_emcee_in[:, i] = np.array([np.random.uniform(min_, max_, nwalkers)])                
+                else:
+                    tem_prior = np.take(
+                        global_all_prior, 
+                        all_key_list.index(use_keys[i]))
                     pos_emcee_in[:, i] = np.array(
                         [np.random.uniform(tem_prior.range[0], 
                                            tem_prior.range[1], 

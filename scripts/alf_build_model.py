@@ -255,8 +255,8 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     prior_bounds = list(zip(prloarr_usekeys[:len_optimize], prhiarr_usekeys[:len_optimize]))
     print('prior_bounds:\n', prior_bounds)
     
-    if ~alfvar.observed_frame:
-        prior_bounds[0] = (-200,200)
+    #if ~alfvar.observed_frame:
+    #    prior_bounds[0] = (-200,200)
     optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
                                           polish=False, updating='deferred', workers=1)
     print('optimized parameters', optimize_res)

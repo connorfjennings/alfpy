@@ -484,8 +484,10 @@ def setup(alfvar, onlybasic = False, pool=None):
     #---- Line 624 --------------------------------------------------!
     #----------------------------------------------------------------!
     print('begin:read in index definitions')
+    f99 = np.genfromtxt("{0}infiles/allindices.dat".format(ALF_HOME), 
+    comments='#', dtype=None, encoding='utf-8', usecols=(0,1,2,3,4,5))
 
-    f99 = np.loadtxt("{0}infiles/allindices_py.dat".format(ALF_HOME))
+    
     alfvar.indxdef = np.copy(f99[:,:].T)
     for i in range(6):
         alfvar.indxdef[i,:21] = airtovac(alfvar.indxdef[i,:21])

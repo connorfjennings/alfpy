@@ -26,4 +26,4 @@ To run alfpy, you’ll need the following Python packages:
 `python3 alf.py <filename> <tag>`
 
 ## Citation
-If alfpy is helpful in your work, I kindly ask that you cite this GitHub repository.
+If __alfpy__ is helpful in your work, I kindly ask that you cite this GitHub repository, as well as all the relevant citations for the original [__alf__](https://github.com/cconroy20/alf/tree/master/src) which are mentioned in the alf documentation.

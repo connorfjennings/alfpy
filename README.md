@@ -21,11 +21,11 @@ To run alfpy, you’ll need the following Python packages (I list the version I 
 - multiprocessing
 
 ## Usage Instructions
-1.	Edit `tofit_parameters.py` to specify the parameters you want to fit.
-2.	With `<filename>.dat` placed in `alf/indata/`, run the following command to build the model:
+1. Define an environment variable `ALFPY_HOME` to `path/alfpy/`
+2. Edit `tofit_parameters.py` to specify the parameters you want to fit and the default values for those not being fitted
+3. With `<filename>.dat` placed in `alf/indata/`, run the following command to build the model:
  `python alf_build_model.py <filename> <tag>`
-
-3.	To start fitting the model, run:
+4. To start fitting the model, run:
 `python alf.py <filename> <tag>`
 
 ## Citation

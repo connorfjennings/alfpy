@@ -24,6 +24,7 @@ def tmp_cal(lam, il1, il2, npow=None, npolymax = 10):
 
 
 # ------------------------------------------------------------------------- #
+@jit(nopython=True, fastmath=True)
 def polyfit_vandermonde(x, y, yerr, degree):
     """
     Fit a polynomial of the given degree to the data points (x, y)
@@ -49,6 +50,7 @@ def polyfit_vandermonde(x, y, yerr, degree):
     return coefficients
 
 # ------------------------------------------------------------------------- #
+@jit(nopython=True, fastmath=True)
 def evaluate_poly(x, coefficients):
     V = np.vander(x, len(coefficients), increasing=True)
     return V @ coefficients

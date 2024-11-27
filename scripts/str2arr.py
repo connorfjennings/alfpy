@@ -3,16 +3,24 @@ from tofit_parameters import tofit_params
 
 __all__ = ['str2arr', 'fill_param']
 
-tofit_params_keys = list(tofit_params.keys())
+#tofit_params_keys = list(tofit_params.keys())
+tofit_params_keys, tofit_params_values = zip(*[(key, v2) for key, (_, v2) in tofit_params.items()])
+tofit_params_keys = list(tofit_params_keys)  # need a list instead of a tuple
+tofit_params_values = np.array(tofit_params_values)  # Convert to NumPy array for numerical operations
 # ---------------------------------------------------------------- #
 class alfobj(object):
     def __init__(self, inarr=None):
         if inarr is None:
-            for ikey in tofit_params_keys:
-                self.__dict__[ikey] = tofit_params[ikey][1]
+            for key, value in zip(tofit_params_keys, tofit_params_values):
+                self.__dict__[key] = value
         else:
-            for i_, ikey_ in enumerate(tofit_params_keys):
-                self.__dict__[ikey_] = inarr[i_]            
+            for key, value in zip(tofit_params_keys, inarr):
+                self.__dict__[key] = value
+            #for ikey in tofit_params_keys:
+            #    self.__dict__[ikey] = tofit_params[ikey][1]
+        #else:
+        #    for i_, ikey_ in enumerate(tofit_params_keys):
+        #        self.__dict__[ikey_] = inarr[i_]            
         
         
 # ---------------------------------------------------------------- #
@@ -33,11 +41,8 @@ def fill_param(inarr, usekeys):
     """
     fill the parameters not included in fitting with default values
     """
-    res_ = np.array([v2 for _, v2 in tofit_params.values()])
+    res_ = np.copy(tofit_params_values)
+    key_to_index = {key: idx for idx, key in enumerate(tofit_params_keys)}
     for i_, ikey_ in enumerate(usekeys):
-        res_[tofit_params_keys.index(ikey_)] = inarr[i_]  
-    return res_       
-
-
-
-
+        res_[key_to_index[ikey_]] = inarr[i_]
+    return res_    

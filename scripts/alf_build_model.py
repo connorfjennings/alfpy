@@ -1,5 +1,4 @@
 # ---- build alfvar model and pickle dump it
-
 import os, sys, copy, pickle, numpy as np
 import time
 from tofit_parameters import tofit_params
@@ -10,24 +9,29 @@ from priors import TopHat,ClippedNormal
 from read_data import *
 from linterp import *
 from str2arr import *
-from getvelz import getvelz
+#from getvelz import getvelz
 from setup import *
 from set_pinit_priors import *
 from scipy.optimize import differential_evolution
+
 # -------------------------------------------------------- #
 def func_2min(inarr):
-    """
-    only optimize the first 4 parameters before running the sampler
-    """
-    return func(global_alfvar, inarr, use_keys[:len(inarr)], 
+    """Minimization function for the first 4 parameters."""
+    return func(global_alfvar, 
+                inarr, 
+                use_keys[:len(inarr)], 
                 prhiarr=global_prhiarr,
                 prloarr=global_prloarr,
                )
 # -------------------------------------------------------- #
 def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     """
-    - based on alf.f90
-    - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
+    Build and pickle an ALFVAR model based on the specified input file.
+    Parameters:
+        - filename: Name of the input file.
+        - tag: Tag for the output file.
+        - pool_type: Multiprocessing or MPI pool type.
+    - based on [alf.f90](https://github.com/cconroy20/alf/blob/master/src/alf.f90)
     Master program to fit the absorption line spectrum, or indices,
     #  of a quiescent (>1 Gyr) stellar population
     # Some important points to keep in mind:
@@ -52,20 +56,18 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     """
     ALFPY_HOME = os.environ['ALFPY_HOME']
     for ifolder in ['alfvar_models', 'results_emcee', 'results_dynesty', 'subjobs']:
-        if os.path.exists(ALFPY_HOME+ifolder) is not True:
-            os.makedirs(ALFPY_HOME+ifolder)
+        if os.path.exists(ALFPY_HOME + ifolder) is not True:
+            os.makedirs(ALFPY_HOME + ifolder)
     
-    pickle_model_name = '{0}alfvar_models/alfvar_model_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
+    pickle_model_name = f'{ALFPY_HOME}alfvar_models/alfvar_model_{filename}_{tag}.p'
     print('We will create one and pickle dump it to \n'+pickle_model_name)
     alfvar = ALFVAR()
-
     global use_keys
     use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
-    
+
     #---------------------------------------------------------------!
     #---------------------------Setup-------------------------------!
     #---------------------------------------------------------------!
-    # ---- flag specifying if fitting indices or spectra
     alfvar.fit_indices = 0  #flag specifying if fitting indices or spectra
 
     # ---- flag determining the level of complexity
@@ -77,7 +79,7 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
 
     # ---- type of IMF to fit
     # ---- 0=1PL, 1=2PL, 2=1PL+cutoff, 3=2PL+cutoff, 4=non-parametric IMF
-    alfvar.imf_type = 3
+    alfvar.imf_type = 1
 
     # ---- are the data in the original observed frame?
     alfvar.observed_frame = 0
@@ -111,7 +113,6 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     # --------------Do not change things below this line-------------!
     # ---------------unless you know what you are doing--------------!
     # ---------------------------------------------------------------!
-
     # ---- regularize non-parametric IMF (always do this)
     alfvar.nonpimf_regularize = 1
 
@@ -186,22 +187,12 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
         # ---- read in the SSPs and bandpass filters
         # ------- setting up model arry with given imf_type ---- #
 
-        if pool_type == 'multiprocessing':
-            from multiprocessing import Pool as to_use_pool        
-        else:
-            from schwimmbad import MPIPool as to_use_pool 
-            
-        pool = to_use_pool()
-        if pool_type == 'mpi':
-            print('pool size', pool.size)
-            if not pool.is_master():
-                pool.wait()
-                sys.exit(0) 
+        pool = setup_pool(pool_type)
                 
         print('\nsetting up model arry with given imf_type and input data\n')
         tstart = time.time()
         #alfvar = setup(alfvar, onlybasic = False, pool = pool)
-        alfvar = setup(alfvar, onlybasic = True, pool = pool)
+        alfvar = setup(alfvar, onlybasic = True, pool = pool)  # use onlybasic for test purpose
         ndur = time.time() - tstart
         print('\n Total time for setup {:.2f}min'.format(ndur/60))
 
@@ -245,45 +236,74 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     global_alfvar = copy.deepcopy(alfvar)
     global_prloarr = copy.deepcopy(prloarr)
     global_prhiarr = copy.deepcopy(prhiarr)
-    # -------- optimize the first four parameters -------- #    
-    len_optimize = 4
+    # ---- optimize the first four parameters 
+    # ---- using differential evolution
+    # ---- then shrink the prior based on the optimization results
+    # ---- although the updated prior range has not been extensively tested 
+    de_keys = ['velz', 'sigma', 'logage', 'zh']
+    len_optimize = len(de_keys)
     all_key_list = list(tofit_params.keys())
     prloarr_usekeys = np.array([global_prloarr[i_] for i_, k_ in enumerate(all_key_list) if k_ in use_keys])
     prhiarr_usekeys = np.array([global_prhiarr[i_] for i_, k_ in enumerate(all_key_list) if k_ in use_keys])
     
-    print('will narrow prior for the following parameters: \n', use_keys[:len_optimize])
+    print('will narrow prior for the following four parameters: \n', use_keys[:len_optimize])
     prior_bounds = list(zip(prloarr_usekeys[:len_optimize], prhiarr_usekeys[:len_optimize]))
-    print('prior_bounds:\n', prior_bounds)
+    print(f'prior_bounds for the first four parameters: {prior_bounds}\n')
     
-    #if ~alfvar.observed_frame:
-    #    prior_bounds[0] = (-200,200)
-    optimize_res = differential_evolution(func_2min, bounds = prior_bounds, disp=True,
-                                          polish=False, updating='deferred', workers=1)
+    optimize_res = differential_evolution(
+        func_2min, 
+        bounds = prior_bounds, 
+        disp=True,
+        polish=False, 
+        updating='deferred', 
+        workers=1)
     print('optimized parameters', optimize_res)
     
     # -------- getting priors for the sampler -------- #
-    global global_all_prior  # ---- note it's for all parameters
+    #global global_all_prior  # note it's for all parameters
     
-    # ---------------- update priors ----------------- #
-    prrange = [10, 10, 0.1, 0.1]
-    global_all_prior = [ClippedNormal(np.array(optimize_res.x)[i], prrange[i],
-                                      global_prloarr[i], 
-                                      global_prhiarr[i]) for i in range(len_optimize)] + \
-                       [TopHat(global_prloarr[i+len_optimize], 
-                               global_prhiarr[i+len_optimize]) for i in range(len(all_key_list)-len_optimize)]
-    
-    # ---- update on 11/2/2022 ---- #
+    # ---- Update priors based on the optimization results
+    prrange = [10, 10, 0.1, 0.1]  # Assumed range adjustments
+    global_all_prior = [
+        ClippedNormal(np.array(optimize_res.x)[i], prrange[i],
+                      global_prloarr[i], 
+                      global_prhiarr[i]) for i in range(len_optimize)] + [
+                          TopHat(global_prloarr[i + len_optimize],
+                                 global_prhiarr[i + len_optimize]) for i in range(len(all_key_list) -  len_optimize)]
+    ## ---- Update priors for the sampler
     for i_, k_ in enumerate(all_key_list):
-        if i_ <=3:
+        if i_ >= len_optimize:
             continue
+        print(f"i_={i_}, k_={k_}")
         if k_ in use_keys:
             prrange_ = global_prhiarr[i_] - global_prloarr[i_]
+            print(f"changing prior for index={i_}, {k_}, prior range = {prrange_}")
+            print(global_all_prior[i_].__dict__)
+            print(f"index for use_keys is {use_keys.index(k_)}")
             global_all_prior[i_] = TopHat(
-                max(global_prloarr[i_], optimize_res.x[use_keys.index(k_)]-0.25*prrange_), 
-                min(global_prhiarr[i_], optimize_res.x[use_keys.index(k_)]+0.25*prrange_))
-     
+                max(global_prloarr[i_], optimize_res.x[use_keys.index(k_)] - 0.25*prrange_), 
+                min(global_prhiarr[i_], optimize_res.x[use_keys.index(k_)] + 0.25*prrange_))
+            
+    print(f"pickle dump the following file {pickle_model_name}")
     pickle.dump([alfvar, prloarr, prhiarr, global_all_prior, optimize_res.x], open(pickle_model_name, "wb" ))
     pool.close()
+
+
+# -------- #
+def setup_pool(pool_type, ncpu=4):
+    """Set up the multiprocessing or MPI pool."""
+    if pool_type == 'multiprocessing':
+        import multiprocessing 
+        #multiprocessing.set_start_method("spawn", force=True)
+        #ctx = multiprocessing.get_context("spawn")
+        return multiprocessing.Pool(processes=ncpu)
+    else:
+        from schwimmbad import MPIPool
+        pool = MPIPool()
+        if not pool.is_master():
+            pool.wait()
+            sys.exit(0)
+        return pool
 
     
 # -------------------------------- #
@@ -292,6 +312,7 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
 if __name__ == "__main__":
     import multiprocessing
     ncpu = os.getenv('SLURM_CPUS_PER_TASK')
+    ncpu = 8
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
         pool_type = 'multiprocessing'
@@ -307,14 +328,5 @@ if __name__ == "__main__":
     tag = ''
     if n_argv >= 3:
         tag = argv_l[2]
-    print('\nrunning alf:\ninput spectrum:{0}.dat'.format(filename))
-
+    print(f'\nrunning alf:\ninput spectrum:{filename}.dat')
     build_alf_model(filename, tag, pool_type = pool_type)
-
-
-
-
-
-
-
-

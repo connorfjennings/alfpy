@@ -119,7 +119,8 @@ def setup(alfvar, onlybasic = False, pool=None):
         for j in range(alfvar.nage_rfcn):
             filename = "{0}infiles/atlas_ssp_{1}_Z{2}.abund."\
                        "{3}.s100".format(ALF_HOME, chart2[j], charz[k], alfvar.atlas_imf)
-            f20 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            #f20 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            f20 = np.loadtxt(filename, comments='#')
 
             for icol, iattr in enumerate(f20_read_dict_attr):
                 if iattr == 'd1':
@@ -187,12 +188,13 @@ def setup(alfvar, onlybasic = False, pool=None):
         if alfvar.ssp_type == 'vcj':
             filename = "{0}infiles/VCJ_v8_mcut0.08_{1}"\
             "_Z{2}.ssp.imf_varydoublex.s100".format(ALF_HOME, chart[t], charz[z])
-            f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
-
+            #f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            f22 = np.loadtxt(filename, comments='#')
         elif alfvar.ssp_type == 'CvD':
             filename = "{0}infiles/CvD_v7s_mcut0.08_{1}"\
             "_Zp0.0.ssp.imf_varydoublex.s100".format(ALF_HOME, chart[t])
-            f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            #f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            f22 = np.loadtxt(filename, comments='#')
             
         else:
             print('wrong alfvar.ssp_type')
@@ -216,7 +218,8 @@ def setup(alfvar, onlybasic = False, pool=None):
         for (t, m, z), _ in np.ndenumerate(alfvar.sspgrid.logsspm[0,0,0]):
             filename = "{0}infiles/VCJ_v8_mcut{1}_{2}_Z{3}"\
                        ".ssp.imf_varydoublex.s100".format(ALF_HOME,charm[m],chart[t],charz[z+2])
-            f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            #f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            f22 = np.loadtxt(filename, comments='#')
             tmp = f22[alfvar.nstart-1:alfvar.nend, 1:]
             ii=0
             for j in range(nimf+nimfoff):
@@ -243,7 +246,8 @@ def setup(alfvar, onlybasic = False, pool=None):
             else:
                 print('SETUP ERROR: nonpimf_alpha=',alfvar.nonpimf_alpha)
             
-            f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            #f22 = np.array(pd.read_csv(filename, delim_whitespace=True, header=None, comment='#'))
+            f22 = np.loadtxt(filename, comments='#')
             tmp = f22[alfvar.nstart-1:alfvar.nend, 1:]
             for ii in range(9):
                 alfvar.sspgrid.sspnp[:, ii, t, z] = np.copy(tmp[:,ii])
@@ -265,8 +269,11 @@ def setup(alfvar, onlybasic = False, pool=None):
 
     # -- read in hot stars
     for j in range(alfvar.nzmet):
-        f24 = np.array(pd.read_csv("{0}infiles/hotteff_feh{1}.dat".format(ALF_HOME, charz2[j]), 
-                                   delim_whitespace=True, header=None, comment='#'))
+        
+        #f24 = np.array(pd.read_csv("{0}infiles/hotteff_feh{1}.dat".format(ALF_HOME, charz2[j]), 
+        #                           delim_whitespace=True, header=None, comment='#'))
+        filename_ = f"{ALF_HOME}infiles/hotteff_feh{charz2[j]}.dat"
+        f24 = np.loadtxt(filename_, comments='#')
         alfvar.sspgrid.hotspec[:,:,j] = f24[alfvar.nstart-1:alfvar.nend, 1:]
         
         """

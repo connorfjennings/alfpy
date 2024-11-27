@@ -1,9 +1,9 @@
 import os, numpy as np
 from alf_constants import *
 #from numba.experimental import jitclass
-import numba 
+import numba
 
-__all__ = ['OUTDIR', 'ALFVAR', 'ALFSSP', 'ALF_HOME', 
+__all__ = ['OUTDIR', 'ALFVAR', 'ALFSSP', 'ALF_HOME',
            'ALFPARAM', 'ALFTDATA', 'ALFIDATA']
 
 OUTDIR = 'results/'
@@ -12,10 +12,10 @@ try:
     ALF_HOME = os.environ['ALF_HOME']
 except:
     print('ALF ERROR: ALF_HOME environment variable not set!')
-    
-    
-    
-# ---------------------------------------------------------------- #    
+
+
+
+# ---------------------------------------------------------------- #
 paramdict = {'velz':0.0, 'sigma':0.0, 'logage':1.0, 'zh':0.0, 'feh':0.0, 'ah':0.0,
              'ch':0.0,'nh':0.0,'nah':0.0,'mgh':0.0,'sih':0.0,'kh':0.0,
              'cah':0.0,'tih':0.0,'vh':0.0,'crh':0.0,'mnh':0.0,'coh':0.0,'nih':0.0,
@@ -28,7 +28,7 @@ paramdict = {'velz':0.0, 'sigma':0.0, 'logage':1.0, 'zh':0.0, 'feh':0.0, 'ah':0.
 #alfparam_type = [(i, numba.float64) for i in paramdict.keys()]
 
 #@jitclass(alfparam_type)
-class ALFPARAM(object):  
+class ALFPARAM(object):
     def __init__(self):
         self.velz = 0.0; self.sigma = 0.0; self.logage = 1.0;
         self.zh = 0.0; self.feh = 0.0; self.ah = 0.0; self.cah = 0.0;
@@ -45,20 +45,20 @@ class ALFPARAM(object):
         self.jitter=1.0; self.imf3 = 0.08;
         self.logsky = -4.0; self.imf4 = 4.0;
         self.h3 = 0.0; self.h4=0.0;
-        #self.chi2 = 1e33 
+        #self.chi2 = 1e33
 
-        
-        
-# ---------------------------------------------------------------- # 
+
+
+# ---------------------------------------------------------------- #
 """
 alfssp_type_3darr = ['solar','nap','nam','cap','cam','fep','fem',
                     'cp','cm','ap','np','nm','tip','tim','mgp','mgm','sip',
                     'sim','crp','mnp','bap','bam','nip','cup','cop','eup',
-                    'srp','kp','vp','teffp','teffm','nap6','nap9', 
-                     'hotspec'] 
-alfssp_type_1darr = ['logagegrid_rfcn', 'logagegrid', 'logzgrid', 
-                     'logzgrid2', 'imfx1', 'imfx2', 'imfx3', 
-                     'atm_trans_h2o', 'atm_trans_o2', 'lam', 'm7g', 
+                    'srp','kp','vp','teffp','teffm','nap6','nap9',
+                     'hotspec']
+alfssp_type_1darr = ['logagegrid_rfcn', 'logagegrid', 'logzgrid',
+                     'logzgrid2', 'imfx1', 'imfx2', 'imfx3',
+                     'atm_trans_h2o', 'atm_trans_o2', 'lam', 'm7g',
                      'teffarrhot']
 alfssp_type_4darr = ['sspnp']
 alfssp_type_5darr = ['logssp']
@@ -67,16 +67,16 @@ alfssp_type = [(i,numba.float64[:]) for i in alfssp_type_1darr] +\
               [(i,numba.float64[:,:,:]) for i in alfssp_type_3darr] +\
               [(i,numba.float64[:,:,:,:]) for i in alfssp_type_4darr] +\
               [(i,numba.float64[:,:,:,:,:]) for i in alfssp_type_5darr] +\
-              [(i,numba.float64[:,:,:,:,:,:]) for i in alfssp_type_6darr] 
+              [(i,numba.float64[:,:,:,:,:,:]) for i in alfssp_type_6darr]
 """
 #@jitclass(alfssp_type)
-class ALFSSP(object):    
-    def __init__(self, nl, nage_rfcn, nzmet, nage, nzmet3, 
+class ALFSSP(object):
+    def __init__(self, nl, nage_rfcn, nzmet, nage, nzmet3,
                  nimfnp, nimf, nmcut, nhot):
-        
+
         self.lam = np.zeros(nl)
-        self.m7g = np.zeros(nl) 
-        
+        self.m7g = np.zeros(nl)
+
         self.solar = np.zeros(shape=(nl, nage_rfcn, nzmet))
         self.nap   = np.zeros(shape=(nl, nage_rfcn, nzmet))
         self.nam   = np.zeros(shape=(nl, nage_rfcn, nzmet))
@@ -106,31 +106,31 @@ class ALFSSP(object):
         self.srp   = np.zeros(shape=(nl, nage_rfcn, nzmet))
         self.kp   = np.zeros(shape=(nl, nage_rfcn, nzmet))
         self.vp   = np.zeros(shape=(nl, nage_rfcn, nzmet))
-        self.teffp   = np.zeros(shape=(nl, nage_rfcn, nzmet)) 
-        self.teffm   = np.zeros(shape=(nl, nage_rfcn, nzmet)) 
-        self.nap6   = np.zeros(shape=(nl, nage_rfcn, nzmet)) 
-        self.nap9   = np.zeros(shape=(nl, nage_rfcn, nzmet)) 
+        self.teffp   = np.zeros(shape=(nl, nage_rfcn, nzmet))
+        self.teffm   = np.zeros(shape=(nl, nage_rfcn, nzmet))
+        self.nap6   = np.zeros(shape=(nl, nage_rfcn, nzmet))
+        self.nap9   = np.zeros(shape=(nl, nage_rfcn, nzmet))
 
-                             
-        self.logagegrid_rfcn = np.zeros(nage_rfcn) 
+
+        self.logagegrid_rfcn = np.zeros(nage_rfcn)
         self.logagegrid = np.zeros(nage)
         self.logzgrid = np.zeros(nzmet)
-        self.logzgrid2 = np.zeros(nzmet3) 
-        self.logssp = np.zeros((nl,nimf,nimf,nage,nzmet)) 
-        self.logsspm = np.zeros((nl,nimf,nimf,nage,nmcut,nzmet3)) 
-        self.sspnp = np.zeros((nl,nimfnp,nage,nzmet)) 
-        self.imfx1 =  np.zeros(nimf) 
-        self.imfx2 = np.zeros(nimf) 
-        self.imfx3 = np.zeros(nmcut) 
+        self.logzgrid2 = np.zeros(nzmet3)
+        self.logssp = np.zeros((nl,nimf,nimf,nage,nzmet))
+        self.logsspm = np.zeros((nl,nimf,nimf,nage,nmcut,nzmet3))
+        self.sspnp = np.zeros((nl,nimfnp,nage,nzmet))
+        self.imfx1 =  np.zeros(nimf)
+        self.imfx2 = np.zeros(nimf)
+        self.imfx3 = np.zeros(nmcut)
         self.hotspec = np.zeros((nl, nhot, nzmet))
-        self.atm_trans_h2o  = np.zeros(nl) 
-        self.atm_trans_o2 = np.zeros(nl) 
-        self.teffarrhot = np.zeros(nhot) 
-        
-        
-        
+        self.atm_trans_h2o  = np.zeros(nl)
+        self.atm_trans_o2 = np.zeros(nl)
+        self.teffarrhot = np.zeros(nhot)
 
-# ---------------------------------------------------------------- # 
+
+
+
+# ---------------------------------------------------------------- #
 alftdata_param = np.array(['lam', 'flx', 'err', 'wgt', 'ires', 'lam0', 'sky'])
 alftdata_type = np.array([(i, numba.float64[:]) for i in alftdata_param])
 #@jitclass(alftdata_type)
@@ -143,9 +143,9 @@ class ALFTDATA(object):
         self.ires = np.zeros(ndat)
         self.lam0 = np.ones(ndat)*1e6
         self.sky = np.zeros(ndat)
-        
-        
-# ---------------------------------------------------------------- # 
+
+
+# ---------------------------------------------------------------- #
 alfidata_param = np.array(['indx', 'err'])
 alfidata_type = np.array([(i, numba.float64[:]) for i in alfidata_param])
 #@jitclass(alfidata_type)
@@ -153,41 +153,41 @@ class ALFIDATA(object):
     def __init__(self, nindx):
         self.indx = np.zeros(nindx)
         self.err = np.ones(nindx)*99.
-        
-        
-# ---------------------------------------------------------------- # 
+
+
+# ---------------------------------------------------------------- #
 """
 alfvar_type_float = ['params', 'sspgrid', 'data_indx', 'data']
 alfvar_type_string = ['ssp_type', 'atlas_imf', 'filename', 'tag' ]
-alfvar_type_float = ['fix_age_dep_resp_fcns', 'fix_z_dep_resp_fcns', 
-                     'smooth_trans', 'poly_dlam', 
-                     'imflo', 'imfhi', 'krpa_imf1', 'krpa_imf2', 'krpa_imf3','imf5', 
+alfvar_type_float = ['fix_age_dep_resp_fcns', 'fix_z_dep_resp_fcns',
+                     'smooth_trans', 'poly_dlam',
+                     'imflo', 'imfhi', 'krpa_imf1', 'krpa_imf2', 'krpa_imf3','imf5',
                      'msto_t0', 'msto_t1', 'msto_z0', 'msto_z1', 'msto_z2', 'dlstep', ]
-alfvar_type_int = ['fit_type', 'use_age_dep_resp_fcns', 'use_z_dep_resp_fcns', 
-                   'fit_trans', 'mwimf', 'imf_type', 'observed_frame', 'powell_fitting', 
-                   'nonpimf_alpha', 'fit_two_ages', 'nonpimf_regularize', 
-                   'fit_indices', 'fit_hermite', 'velbroad_simple', 'extmlpr', 
-                   'fit_poly', 'maskem', 'apply_temperrfcn', 'fake_response', 
-                   'blueimf_off','nzmet3', 'nstart', 'nend', 'nl', 'nl_fit', 
-                   'nlint_max', 'nlint', 'neml', 'npar', 'nage',  'nzmet', 'npowell', 
-                   'nage_rfcn', 'nimf_full', 'nimf', 'npolymax', 'ndat', 'nparsimp', 
-                   'nmcut', 'nimfoff', 'nimfnp', 'nindx', 'nfil', 'nhot', 'nimfnp5', 
+alfvar_type_int = ['fit_type', 'use_age_dep_resp_fcns', 'use_z_dep_resp_fcns',
+                   'fit_trans', 'mwimf', 'imf_type', 'observed_frame', 'powell_fitting',
+                   'nonpimf_alpha', 'fit_two_ages', 'nonpimf_regularize',
+                   'fit_indices', 'fit_hermite', 'velbroad_simple', 'extmlpr',
+                   'fit_poly', 'maskem', 'apply_temperrfcn', 'fake_response',
+                   'blueimf_off','nzmet3', 'nstart', 'nend', 'nl', 'nl_fit',
+                   'nlint_max', 'nlint', 'neml', 'npar', 'nage',  'nzmet', 'npowell',
+                   'nage_rfcn', 'nimf_full', 'nimf', 'npolymax', 'ndat', 'nparsimp',
+                   'nmcut', 'nimfoff', 'nimfnp', 'nindx', 'nfil', 'nhot', 'nimfnp5',
                   'datmax', 'lam7', 'imfr1', 'imfr2', 'imfr3','nmlprtabmax', 'nskylines']
-alfvar_type_1darr = ['magsun', 'mbin_nimf9', 'corr_bin_weight', 'l1', 'l2', 'prloarr', 'prhiarr', 
+alfvar_type_1darr = ['magsun', 'mbin_nimf9', 'corr_bin_weight', 'l1', 'l2', 'prloarr', 'prhiarr',
                      'temperrfcn', 'emlines',  'lnlam', 'lsky', 'fsky', 'indx2fit',
                     'npi_alphav', 'npi_renorm', ]
-alfvar_type_2darr = ['filters', 'mlprtab', 'indxdef', 'indxcat']   
+alfvar_type_2darr = ['filters', 'mlprtab', 'indxdef', 'indxcat']
 alfvar_type = [(i,numba.types.unicode_type) for i in alfvar_type_string]+ \
               [(i,numba.int64) for i in alfvar_type_int]+ \
               [(i,numba.float64) for i in alfvar_type_float]+ \
               [(i,numba.float64[:]) for i in alfvar_type_1darr] +\
               [(i,numba.float64[:,:]) for i in alfvar_type_2darr] +\
-              [('params', ALFPARAM.class_type.instance_type), 
-               ('sspgrid', ALFSSP.class_type.instance_type), 
-               ('data_indx', ALFIDATA.class_type.instance_type), 
+              [('params', ALFPARAM.class_type.instance_type),
+               ('sspgrid', ALFSSP.class_type.instance_type),
+               ('data_indx', ALFIDATA.class_type.instance_type),
                ('data',ALFTDATA.class_type.instance_type)]
-    
-"""    
+
+"""
 #@jitclass(alfvar_type)
 class ALFVAR(object):
     """
@@ -195,7 +195,7 @@ class ALFVAR(object):
     """
     def __init__(self):
         self.ssp_type = ssp_type
-            
+
         #-------------------set various parameters---------------------!
         # -- 0: fit the full model (IMF, all abundances, nuisance params, etc)
         # -- 1: only fit velz, sigma, SSP age, Z, Fe,C,N,O,Mg,Si,Ca,Ti,Na
@@ -206,7 +206,7 @@ class ALFVAR(object):
         self.use_age_dep_resp_fcns = 1
         # -- if above is set to 0, fix the response functions to this age (Gyr)
         self.fix_age_dep_resp_fcns = 10.0
-        
+
         # -- turn on the use of Z-dependent response functions
         self.use_z_dep_resp_fcns = 1
         # -- if above is set to 0, fix the response functions to this [Z/H]
@@ -297,9 +297,8 @@ class ALFVAR(object):
         # -- nstart and nend allow us to use only a subset of
         # -- the full wavelength array
         self.nstart = 100 # 100   ! 0.36 um
-        self.nend   = 10566  # 5830(all) ! 5830 (1.10u)
-        #self.nend   = 10566 
-        
+        self.nend   = 5830  # 10566(all) ! 5830 (1.10u)
+
         self.nl = self.nend - self.nstart + 1    # number of spectral elements in SSPs
         self.nl_fit = self.nl    # number actually used over the range to be fit
         self.nlint_max = 10    # (max) number of wavelength intervals
@@ -308,16 +307,16 @@ class ALFVAR(object):
         self.npar = 46    #number of parameters
         self.nage = 7    #number of ages in the empirical SSP grid
         self.nzmet = 5    #number of metallicities in the empirical SSP grid
-        
+
         # -- number of parameters used when fitting in Powell model
         # -- or in the super-simple mode (fit_type=2)
         self.npowell = 4
         self.nage_rfcn = 5    #number of ages in the response functions
-        
+
         # -- number of IMF values in the SSP grid
         self.nimf_full=16; self.nmcut=8; self.nimfoff=2; self.nimfnp=9
         self.nimf = self.nimf_full - self.nimfoff
-            
+
         # -- max degree of polynomial used for continuum fitting
         self.npolymax = 14
         # -- wavelength interval used to determine polynomial degree
@@ -346,13 +345,13 @@ class ALFVAR(object):
         self.mbin_nimf9 = np.array([0.08,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0])
         self.corr_bin_weight = np.zeros(self.nimfnp)
 
-            
+
         #----------Setup a common block of arrays and vars-------------!
-        self.datmax = 0  # length of input data  ??? 
+        self.datmax = 0  # length of input data  ???
         self.lam7 = 1  # index in lam array at 7000A
         # -- indices for the fiducial IMF (set in setup.f90)
         self.imfr1=1; self.imfr2=1; self.imfr3=1
-            
+
         self.filters = np.zeros((self.nl, self.nfil))  # common array for filters
         self.l1 = np.zeros(self.nlint_max)  # common array for wavelength intervals
         self.l2 = np.zeros(self.nlint_max)
@@ -361,20 +360,20 @@ class ALFVAR(object):
         self.mlprtab = np.zeros((self.ndat,2))  #array storing the tabulated M/L prior
         self.nmlprtabmax = 1
         self.temperrfcn = np.ones(self.nl)  #array for the template error function
-        
+
         # -- define central wavelengths of emission lines (in vacuum)
         # -- these wavelengths come from NIST
-        #  -- [hd, hy, hb, [OIII], [OIII], [NI], [NII], Ha, [NII], 
+        #  -- [hd, hy, hb, [OIII], [OIII], [NI], [NII], Ha, [NII],
         #  -- [SII], [SII], [OII], [OII], Balmer, Balmer, Balmer, Balmer, Balmer, Balmer]
-        self.emlines = np.array([4102.89, 4341.69, 4862.71, 4960.30, 5008.24, 
-                                 5203.05, 6549.86, 6564.61, 6585.27, 6718.29, 
-                                 6732.67, 3727.10, 3729.86, 3751.22, 3771.70, 
+        self.emlines = np.array([4102.89, 4341.69, 4862.71, 4960.30, 5008.24,
+                                 5203.05, 6549.86, 6564.61, 6585.27, 6718.29,
+                                 6732.67, 3727.10, 3729.86, 3751.22, 3771.70,
                                  3798.99, 3836.49, 3890.17, 3971.20])
-   
+
         self.dlstep = 0.  #variables used in velbroad.f90 routine
         self.lnlam = np.zeros(self.nl)
 
-        
+
         self.nskylines = 39324    #arrays holding the sky emission lines
         self.lsky = np.empty(shape = self.nskylines)
         self.fsky = np.empty(shape = self.nskylines)
@@ -384,9 +383,9 @@ class ALFVAR(object):
         self.indx2fit = np.zeros(self.nindx)
 
         # -- index definition for CaT
-        # -- CaT index   
+        # -- CaT index
         self.indxcat = np.empty(shape=(6,3))
-    
+
         # -- IMF slopes within each bin
         self.npi_alphav = np.zeros(self.nimfnp)
         self.npi_renorm = np.ones(self.nimfnp)
@@ -394,8 +393,8 @@ class ALFVAR(object):
         #---------------------Physical Constants-----------------------!
         #---------------in cgs units where applicable------------------!
         # --- in alf_constants.py
-        
-        
+
+
         #-------------------update TYPE structures---------------------!
         #structure for the set of parameters necessary to generate a model
         # params, sspgrid
@@ -407,15 +406,15 @@ class ALFVAR(object):
         self.data = ALFTDATA(self.ndat)
 
 
-    
-    
 
-        
-        
-        
-# ---------------------------------------------------------------- #  
+
+
+
+
+
+# ---------------------------------------------------------------- #
 """
-class ALFPARAM(object):  
+class ALFPARAM(object):
     def __init__(self):
         paramdict = {'velz':0.0, 'sigma':0.0, 'logage':1.0, 'zh':0.0, 'feh':0.0, 'ah':0.0,
                      'ch':0.0,'nh':0.0,'nah':0.0,'mgh':0.0,'sih':0.0,'kh':0.0,
@@ -426,12 +425,12 @@ class ALFPARAM(object):
                      'logemline_oiii':-4.0,'logemline_sii':-4.0,'logemline_ni':-4.0,
                      'logemline_nii':-4.0,'logemline_oii':-4.0,'jitter':1.0,'imf3':0.08,
                      'logsky':-4.0,'imf4':0.0,'h3':0.0,'h4':0.0, 'chi2':huge_number}
-        
+
         paramname = list(paramdict.keys())
         for iname in paramname:
             self.__setattr__(iname, paramdict[iname])
-            
-"""            
-        
 
-        
+"""
+
+
+

@@ -1,4 +1,4 @@
-import os, sys, copy, pickle, numpy as np
+import os, sys, pickle, numpy as np
 import matplotlib.pyplot as plt
 import emcee, time
 import dynesty
@@ -7,72 +7,81 @@ from tofit_parameters import tofit_params
 from func import func
 from alf_vars import *
 from alf_constants import *
-from priors import TopHat,ClippedNormal
 from read_data import *
 from linterp import *
 from str2arr import *
 from setup import *
 from set_pinit_priors import *
-
 from post_process import calm2l_dynesty
+from alf_build_model import setup_pool
 
 # -------------------------------------------------------- #
-def log_prob(inarr):
-    res_ = func(global_alfvar, 
-                inarr, use_keys,
-                prhiarr=global_prhiarr,
-                prloarr=global_prloarr)
-    return -0.5*res_
-
-# -------------------------------------------------------- #
-def log_prob_nested(posarr):
-    ln_prior = lnprior(posarr)
-    if not np.isfinite(ln_prior):
-        return -np.infty
-    res_ = func(global_alfvar, posarr, 
-                     usekeys=use_keys, prhiarr=global_prhiarr,
-                     prloarr=global_prloarr)
-    return ln_prior-0.5*res_
-
-# -------------------------------------------------------- #
-def prior_transform(unit_coords):
-    all_key_list = list(tofit_params.keys())
-    return np.array([global_all_prior[all_key_list.index(ikey)].unit_transform(unit_coords[i]) for i, ikey in enumerate(use_keys)])
-
-
-# -------------------------------------------------------- #
-def lnprior(in_arr):
+class LogProbCalculator:
     """
-    - only used for dynesty
-    - INPUT: npar arr (same length as use_keys)
-    - GLOBAL VARIABLES:
-        - global_all_priors: priors for all 46 parameter
+    use a class instead of relying on global variables
     """
-    full_arr = fill_param(in_arr, use_keys)
-    lnp = sum([global_all_prior[i_].lnp(iarr_) for i_, iarr_ in enumerate(full_arr)])
-    if np.isfinite(lnp):
-        return 0.0
-    return lnp
+    def __init__(self, alfvar, prloarr, prhiarr, all_prior, keys):
+        self.alfvar = alfvar
+        self.prloarr = prloarr
+        self.prhiarr = prhiarr
+        self.all_prior = all_prior
+        self.keys = keys
 
+
+    def log_prob(self, inarr):
+        """Log-probability function for emcee."""
+        log_p = func(self.alfvar, inarr, 
+                     self.keys,
+                     prhiarr=self.prhiarr,
+                     prloarr=self.prloarr)
+        return -0.5*log_p
+
+    def log_prob_nested(self, posarr):
+        """Log-probability function for dynesty."""
+        ln_prior = self.lnprior(posarr)
+        if not np.isfinite(ln_prior):
+            return -np.infty
+        res_ = func(self.alfvar, 
+                    posarr, 
+                    usekeys=self.keys, 
+                    prhiarr=self.prhiarr,
+                    prloarr=self.prloarr)
+        return ln_prior - 0.5 * res_
+
+
+    def prior_transform(self, unit_coords):
+        """Transform unit coordinates to prior ranges for dynesty."""
+        all_key_list = list(tofit_params.keys())
+        res_ = np.array([self.all_prior[all_key_list.index(ikey)].unit_transform(unit_coords[i]) for i, ikey in enumerate(self.keys)])
+        return res_
+
+
+    def lnprior(self, in_arr):
+        """
+        Log-prior function for dynesty.
+        - INPUT: npar arr (same length as use_keys)
+        - all_priors: priors for all 46 parameter
+        """
+        full_arr = fill_param(in_arr, self.keys)
+        lnp = sum([self.all_prior[i_].lnp(iarr_) for i_, iarr_ in enumerate(full_arr)])
+        #return lnp if np.isfinite(lnp) else -np.inf
+        return 0 if np.isfinite(lnp) else lnp
+    
 
 # -------------------------------------------------------- #
-def func_2min(inarr):
+def alf(filename, 
+        tag='', 
+        nwalkers = 16, 
+        nburn = 100, 
+        nmcmc = 100,
+        run='dynesty', 
+        pool_type='multiprocessing', 
+        emcee_save_chains = False, 
+        ncpu=1, 
+        nested_post_process=False):
     """
-    only optimize the first 4 parameters before running the sampler
-    """
-    return func(global_alfvar, inarr, use_keys[:len(inarr)], 
-                prhiarr=global_prhiarr,
-                prloarr=global_prloarr,
-               )
-
-
-# -------------------------------------------------------- #
-def alf(filename, tag='', 
-        nwalkers = 128, nburn = 2000, 
-        run='dynesty', pool_type='multiprocessing', save_chains=True):
-    """
-    - based on alf.f90
-    - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
+    Main function to perform ALF fitting using either emcee or dynesty.
+    - based on alf.f90, `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
     Master program to fit the absorption line spectrum, or indices,
     #  of a quiescent (>1 Gyr) stellar population
     # Some important points to keep in mind:
@@ -96,176 +105,88 @@ def alf(filename, tag='',
     # To Do: let the Fe-peak elements track Fe in simple mode
     """
     ALFPY_HOME = os.environ['ALFPY_HOME']
-    pickle_model_name = '{0}alfvar_models/alfvar_model_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
-    global use_keys
-    use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
-    
-    global global_alfvar
-    global global_all_prior
-    global global_prloarr, global_prhiarr
+    pickle_model_name = f"{ALFPY_HOME}alfvar_models/alfvar_model_{filename}_{tag}.p"
+
+    # Load model
     try:
-        [global_alfvar, global_prloarr, global_prhiarr, global_all_prior, optimize_res_x] = pickle.load(open(pickle_model_name, "rb" ))
+        print(f"loading pickle file {pickle_model_name}")
+        alfvar, prloarr, prhiarr, all_prior, optimize_res_x = pickle.load(open(pickle_model_name, "rb" ))
     except:
-        print('cannot find model_arr at {0}. \n Please run alf_build_model first'.format(pickle_model_name))
+        print(f'Cannot find model_arr at {pickle_model_name}. Please run alf_build_model first.')
         return 
 
-    nmcmc = 100    # -- number of chain steps to print to file
-    # -- inverse sampling of the walkers for printing
-    # -- NB: setting this to >1 currently results in errors in the *sum outputs
-    nsample = 1
-    #nburn = 2000    # -- length of chain burn-in
-    #nwalkers = 128    # -- number of walkers
+    # Initialize log probability calculator
+    use_keys = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
     npar = len(use_keys)
     all_key_list = list(tofit_params.keys())
-    
-    # ==== works should have all info ===== #
-    # ========== initialize pool ========== #
-    if pool_type == 'multiprocessing':
-        import multiprocessing
-        from multiprocessing import Pool as to_use_pool        
-    else:
-        from schwimmbad import MPIPool as to_use_pool 
-    with to_use_pool() as pool:
-        if pool_type == 'mpi':
-            ncpu = pool.size
-            print('pool size', pool.size)
-            if not pool.is_master():
-                pool.wait()
-                sys.exit(0) 
-        else:
-            ncpu = multiprocessing.cpu_count()
-        print('ncpu=', ncpu)
-        # ---------------------------------------------------------------- #        
-        if run == 'emcee':
+    log_prob_calculator = LogProbCalculator(alfvar, prloarr, prhiarr, all_prior, use_keys)
+
+    pool = setup_pool(pool_type, ncpu) # Initialize pool
+
+    with pool:
+        # ---------------------------------------------------------------- #
+        if run == 'emcee' or run == 'emcee_test':
+            # Initialize walkers
             pos_emcee_in = np.zeros(shape=(nwalkers, npar))
             prrange = [10, 10, 0.1, 0.1]
             for i in range(npar):
-                if i <4:
-                    min_ = max(global_prloarr[i], np.array(optimize_res_x)[i]-prrange[i])
-                    max_ = min(global_prhiarr[i], np.array(optimize_res_x)[i]+prrange[i])
+                if i < 4:
+                    min_ = max(prloarr[i], np.array(optimize_res_x)[i] - prrange[i])
+                    max_ = min(prhiarr[i], np.array(optimize_res_x)[i] + prrange[i])
                     pos_emcee_in[:, i] = np.array([np.random.uniform(min_, max_, nwalkers)])                
                 else:
-                    tem_prior = np.take(
-                        global_all_prior, 
-                        all_key_list.index(use_keys[i]))
+                    tem_prior = np.take(all_prior, all_key_list.index(use_keys[i]))
                     pos_emcee_in[:, i] = np.array(
-                        [np.random.uniform(tem_prior.range[0], 
-                                           tem_prior.range[1], 
-                                           nwalkers)])
+                        [np.random.uniform(
+                            tem_prior.range[0], 
+                            tem_prior.range[1], 
+                            nwalkers)])
+                    print(i, all_key_list.index(use_keys[i]), tem_prior.range, pos_emcee_in[:, i] )
                 
-            print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
+            print(pos_emcee_in[:,4])
+            print(f'Initializing emcee with nwalkers={nwalkers}, npar={npar}')
+            print(f"Shape of initialized positions: {pos_emcee_in.shape}")
+            print(f"Mean positions across walkers: {np.nanmean(pos_emcee_in, axis=0)}")
+            print(f"Min positions across walkers: {np.nanmin(pos_emcee_in, axis=0)}")
+            print(f"Max positions across walkers: {np.nanmax(pos_emcee_in, axis=0)}")
+            print("try func on mean initial values:", 
+                  func(alfvar, np.nanmean(pos_emcee_in, axis=0), 
+                       use_keys,
+                       prhiarr=prhiarr,
+                       prloarr=prloarr))
+            for i, inarr in enumerate(pos_emcee_in):
+                log_p = log_prob_calculator.log_prob(inarr)
+                print(f"Walker {i}, log_prob={log_p}")
+                print(f"walker nested prior", log_prob_calculator.lnprior(inarr))
             tstart = time.time()
-            #backends_fname = '{0}results_emcee/backend_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
-            #backend = emcee.backends.HDFBackend(backends_fname)
-            #backend.reset(nwalkers, npar)
+            if emcee_save_chains:
+                backends_fname = f"{ALFPY_HOME}results_emcee/backend_{filename}_{tag}.p"
+                backend = emcee.backends.HDFBackend(backends_fname)
+                backend.reset(nwalkers, npar)
 
+        # ---------------------------------------------------------------- #
+        if run == 'emcee':
+            # Run emcee
             sampler = emcee.EnsembleSampler(
-                nwalkers, npar, log_prob, pool=pool, 
+                nwalkers, npar, log_prob_calculator.log_prob, pool=pool, 
                 #moves = [emcee.moves.StretchMove(a=2.0)], 
                 #backend = backend
             )
-            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc)
-            print('mean acc fraction %.3f' %np.nanmean(sampler.acceptance_fraction))
-            ndur = time.time() - tstart
-            print('\n Total time for emcee {:.2f}min'.format(ndur/60))
+            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True)
 
+            # Save results
+            print(f'mean acc fraction {np.nanmean(sampler.acceptance_fraction):.3f}')
+            ndur = time.time() - tstart
+            print(f'\n Total time for emcee {ndur/60:.2f}min')
             res = sampler.get_chain(discard = nburn) 
             prob = sampler.get_log_prob(discard = nburn)
-            pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
-            pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
-            best_params = res[np.where(prob == prob.max())][0]
-            _, best_mspec = func(global_alfvar, best_params, use_keys, funit=True)
-            np.savetxt('{0}results_emcee/bestspec_{1}_{2}.dat'.format(ALFPY_HOME, filename, tag),
-                       np.transpose(best_mspec), 
-                       delimiter="     ", fmt='   %12.4f   %12.4E   %12.4E   %12.4E   %12.4E   %12.4E')
-            
-            
+
         # ---------------------------------------------------------------- #
-        if run == 'emcee_test':
-            pos_emcee_in = np.zeros(shape=(nwalkers, npar))
-            prrange = [10, 10, 0.1, 0.1]
-            for i in range(npar):
-                if i <4:
-                    min_ = max(global_prloarr[i], np.array(optimize_res_x)[i]-prrange[i])
-                    max_ = min(global_prhiarr[i], np.array(optimize_res_x)[i]+prrange[i])
-                    pos_emcee_in[:, i] = np.array([np.random.uniform(min_, max_, nwalkers)])                
-                else:
-                    tem_prior = np.take(
-                        global_all_prior, 
-                        all_key_list.index(use_keys[i]))
-                    pos_emcee_in[:, i] = np.array(
-                        [np.random.uniform(tem_prior.range[0], 
-                                           tem_prior.range[1], 
-                                           nwalkers)])
-                
-            print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
-            tstart = time.time()
-
-            if save_chains:
-                sample_file = '{0}results_emcee/{1}_{2}.h5'.format(ALFPY_HOME, filename, tag)
-                backend = emcee.backends.HDFBackend(sample_file, name = 'burn in')
-                backend.reset(nwalkers, npar)
-            else:
-                backend = None
-
-
-            # ---------------- run initial burn-in ----------------- #
-            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
+        elif run == 'emcee_test':
+            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob_calculator.log_prob, pool=pool,
                                             moves=[emcee.moves.StretchMove(a=1.5)],
                                             backend=backend)
-
-            p_mean_last = pos_emcee_in.mean(0)
-            log_prob_mean_last = -np.inf
-            for j, sample in enumerate(sampler.sample(pos_emcee_in, iterations=3000, progress=True)):
-                it = j+1
-                if (it % 100): continue
-                ndur = (time.time() - tstart)/60
-                p_mean = sampler.get_chain(flat=True, thin=1, discard = it-100).mean(0)
-                log_prob_mean = sampler.get_log_prob(discard=it-100).mean()
-                # delta log probability
-                dlogP = np.log10(np.abs((log_prob_mean - log_prob_mean_last) / log_prob_mean))
-                # mean change in each parameter
-                dmean = np.abs(np.mean((p_mean-p_mean_last)/p_mean))
-                print(f'iter = {it}, ' +
-                      f'acceptance fraction = {sampler.acceptance_fraction.mean():.2f}, ' +
-                      f'd(logP) = {dlogP:0.2f}, ' +
-                      f'd(mean) = {dmean:0.4f}, ' +
-                      f'time={ndur:.2f}min',
-                      flush=True)
-
-                if (it>500)&(dmean < 0.01)&(dlogP<-4): break 
-
-                p_mean_last = p_mean
-                log_prob_mean_last = log_prob_mean
-
-
-            # ---------------- run burn-in ----------------- #
-            # take best walker and re-initialize there
-            last_state = sampler.get_last_sample()
-            best_walker = last_state.coords[last_state.log_prob.argmax()]
-
-            # reinitialize from best walker (within +/- 5% of total prior range)
-            for i in range(npar):
-                tem_prior = np.take(
-                    global_all_prior, 
-                    all_key_list.index(use_keys[i])
-                )
-                min_ = max(global_prloarr[i], np.array(best_walker)[i]-0.01*np.diff(tem_prior.range))
-                max_ = min(global_prhiarr[i], np.array(best_walker)[i]+0.01*np.diff(tem_prior.range))
-                pos_emcee_in[:, i] = np.array([np.random.uniform(min_, max_, 
-                                    nwalkers)])
-
-            if save_chains:
-                backend = emcee.backends.HDFBackend(sample_file, name=f"samples")
-                backend.reset(nwalkers, npar)
-            
-            
-            sampler = emcee.EnsembleSampler(nwalkers, npar, log_prob, pool=pool,
-                                            moves=[emcee.moves.StretchMove(a=1.5)],
-                                            backend=backend)
-
             old_tau = np.inf
-            num = it
             converged = False
             for j, sample in enumerate(sampler.sample(pos_emcee_in, iterations=60000, progress=True)):
                 it = j+1
@@ -289,80 +210,83 @@ def alf(filename, tag='',
                 old_tau = tau
 
                 if converged: break
-
-                # plot chain update!
-                if it % 1000:
-                    continue
+                if it % 1000:  continue
                 samples = sampler.get_chain(thin=int(np.max(tau) / 2))
-                nlabels = len(use_keys)
-                fig, axes = plt.subplots(nlabels, figsize=(10, 20), sharex=True)
+                fig, axes = plt.subplots(npar, figsize=(10, 20), sharex=True)
                 for i in range(samples.shape[2]):
                     ax = axes[i]
                     ax.plot(samples[:, :, i], "k", alpha=0.3)
                     ax.set_ylabel(use_keys[i])
                     ax.yaxis.set_label_coords(-0.1, 0.5)
                 axes[-1].set_xlabel("step number")
-                plt.savefig(f'{ALFPY_HOME}results_emcee/check_chains_{filename}_{tag}.png',dpi=300)
-                plt.close('all')
-
+                fig.savefig(f'{ALFPY_HOME}results_emcee/check_chains_{filename}_{tag}.png',
+                            dpi=100, bbox_inches="tight")
+                fig.clf()
+                del fig
 
             ndur = time.time() - tstart
             print('\n Total time for emcee {:.2f}min'.format(ndur/60))
-
             prob = sampler.get_log_prob(discard=int(5 * np.max(tau)), thin=int(np.max(tau) / 2))
             res = sampler.get_chain(discard=int(5 * np.max(tau)), thin=int(np.max(tau) / 2))
-            pickle.dump(res, open('{0}results_emcee/res_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
-            pickle.dump(prob, open('{0}results_emcee/prob_emcee_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ) )
-            best_params = res[np.where(prob == prob.max())][0]
-            _, best_mspec = func(global_alfvar, best_params, use_keys, funit=True)
-            np.savetxt('{0}results_emcee/bestspec_{1}_{2}.dat'.format(ALFPY_HOME, filename, tag),
-                       np.transpose(best_mspec), 
-                       delimiter="     ", fmt='   %12.4f   %12.4E   %12.4E   %12.4E   %12.4E   %12.4E')
-            
+
         # ---------------------------------------------------------------- #
         elif run == 'dynesty':
-            dsampler = dynesty.NestedSampler(log_prob_nested, prior_transform, 
-                                             npar, nlive = int(50*npar),
-                                             sample='rslice', bootstrap=0, 
-                                             pool=pool, queue_size=ncpu)
-            ncall = dsampler.ncall
-            niter = dsampler.it - 1
+            # Run dynesty
+            dsampler = dynesty.NestedSampler(
+                log_prob_calculator.log_prob_nested,
+                log_prob_calculator.prior_transform,
+                npar, nlive = int(50*npar),
+                sample='rslice', bootstrap=0, 
+                pool=pool, queue_size=ncpu)
+
             tstart = time.time()
             dsampler.run_nested(dlogz=0.5)
             ndur = time.time() - tstart
-            print('\n Total time for dynesty {:.2f}hrs'.format(ndur/60./60.))
+            print(f'\n Total time for dynesty {ndur/60./60.:.2f}hrs')
 
+            # Save results
             results = dsampler.results
-            pickle.dump(results, open('{0}results_dynesty/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "wb" ))
-
-            results = pickle.load(open('{0}results_dynesty/res_dynesty_{1}_{2}.p'.format(ALFPY_HOME, filename, tag), "rb" ))
+            pickle.dump(results, open(f'{ALFPY_HOME}results_dynesty/res_dynesty_{filename}_{tag}.p', "wb"))
+            print('Dynesty run complete.')
+            
             # ---- post process ---- #
-            calm2l_dynesty(results, global_alfvar, use_keys=use_keys, outname=filename+'_'+tag, pool=pool)
+            if nested_post_process:
+                results = pickle.load(open(f'{ALFPY_HOME}results_dynesty/res_dynesty_{filename}_{tag}.p', "rb" ))
+                calm2l_dynesty(results, alfvar, use_keys=use_keys, 
+                               outname=f"{filename}_{tag}", pool=pool)
+
+        # ---------------------------------------------------------------- #
+        if run == 'emcee' or run == 'emcee_test':
+
+            pickle.dump(res, open(f'{ALFPY_HOME}results_emcee/res_emcee_{filename}_{tag}.p', "wb"))
+            pickle.dump(prob, open(f'{ALFPY_HOME}results_emcee/prob_emcee_{filename}_{tag}.p', "wb"))
+            print('EMCEE run complete.')
+            best_params = res[np.where(prob == prob.max())][0]
+            _, best_mspec = func(alfvar, best_params, use_keys, funit=True)
+            np.savetxt(f'{ALFPY_HOME}results_emcee/bestspec_{filename}_{tag}.dat',
+                       np.transpose(best_mspec), 
+                       delimiter="     ", 
+                       fmt='   %12.4f   %12.4E   %12.4E   %12.4E   %12.4E   %12.4E')
+            
+        pool.close()     
 
 # -------------------------------- #
 # ---- command line arguments ---- #
 # -------------------------------- #
+import cProfile
+import pstats
+
 if __name__ == "__main__":
-    import multiprocessing
+    profiler = cProfile.Profile()
+    profiler.enable()
 
-    ncpu = os.getenv('SLURM_CPUS_PER_TASK')
-    ncpu = 8
-    os.environ["OMP_NUM_THREADS"] = "1"
-    if ncpu is None:
-        pool_type = 'multiprocessing'
-        ncpu = multiprocessing.cpu_count()
-    else:
-        pool_type = 'multiprocessing'
-
-    print('\npool type:', pool_type)      
-    print('ncpu=', ncpu)
     argv_l = sys.argv
     n_argv = len(argv_l)
     filename = argv_l[1]
-    tag = ''
-    if n_argv >= 3:
-        tag = argv_l[2]
-    run = 'dynesty'
-    print('\nrunning alf:\ninput spectrum:{0}.dat'.format(filename))
-    print('sampler = {0}'.format(run))
-    alf(filename, tag, run=run, pool_type = pool_type)
+    tag = argv_l[2] if n_argv >= 2 else ''
+    # pool_type: multiprocessing or emcee
+    alf(filename, tag, run = "dynesty", pool_type = "multiprocessing", ncpu=8)
+
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats("cumtime")  # Sort by cumulative time
+    stats.print_stats(5)  

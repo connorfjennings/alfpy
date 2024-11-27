@@ -1,9 +1,8 @@
-import numpy as np
-from linterp import *
-from str2arr import *
-from getmodel import *
-from getm2l import *
-from alf_constants import *
+from linterp import linterp
+from getmodel import getmodel
+from getm2l import getm2l
+from alf_constants import clight
+
 
 def spec_from_pos(pos, alfvar):
     """
@@ -19,12 +18,12 @@ def spec_from_pos(pos, alfvar):
 
     # ---- !we turn off the emission lines, since they are often highly
     # ---- !unconstrained if they are not included in the wavelength range
-    pos.logemline_h    = -6.0
-    pos.logemline_oii  = -6.0
-    pos.logemline_oiii = -6.0
-    pos.logemline_nii  = -6.0
-    pos.logemline_sii  = -6.0
-    pos.logemline_ni   = -6.0
+    #pos.logemline_h    = -6.0
+    #pos.logemline_oii  = -6.0
+    #pos.logemline_oiii = -6.0
+    #pos.logemline_nii  = -6.0
+    #pos.logemline_sii  = -6.0
+    #pos.logemline_ni   = -6.0
 
     # ------------------------------------------------------------!    
     mspec = getmodel(pos, alfvar=alfvar)

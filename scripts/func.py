@@ -1,10 +1,10 @@
 import numpy as np
-from linterp import *
-from str2arr import *
+from linterp import locate, linterp
+from str2arr import str2arr, fill_param
 from getmodel import getmodel, fast_np_power
-from set_pinit_priors import *
-from contnormspec import *
-from alf_constants import *
+from set_pinit_priors import set_pinit_priors
+from contnormspec import contnormspec
+from alf_constants import mypi,clight,tiny_number
 
 __all__ = ['func']
 
@@ -41,6 +41,7 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
     func_val = 0.0
     nposarr = fill_param(in_posarr, usekeys = usekeys)
     npos = str2arr(2, inarr = nposarr)
+
     # ---------------------------------------------------------------- #
     # ---- !compute priors (don't count all the priors if fitting
     # ---- !in (super) simple mode or in powell fitting mode)
@@ -55,7 +56,6 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
     if (alfvar.imf_type == 4 and alfvar.nonpimf_regularize == 1):
         if (npos.imf2 - npos.imf1+ alfvar.corr_bin_weight[2]-alfvar.corr_bin_weight[0] < 0.0) & \
         (npos.imf3 - npos.imf2 + alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] > 0.0) :
-            
             pr=0.0
             
         if (npos.imf3-npos.imf2+alfvar.corr_bin_weight[4]-alfvar.corr_bin_weight[2] < 0.0) & \
@@ -127,14 +127,11 @@ def func(alfvar, in_posarr, usekeys, prhiarr = None, prloarr=None,
                 # ---- !no jitter in simple mode
                 tchi2 = np.nansum( np.square(flx_i12-mflx_i12)/np.square(err_i12) )
 
-            
-           
             # ---- !error checking
             if (~np.isfinite(tchi2)):
                 return np.inf
 
             func_val  += tchi2
-        
         
             if funit is True:
                 if (alfvar.fit_type == 0):

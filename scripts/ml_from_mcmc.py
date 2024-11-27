@@ -1,10 +1,10 @@
 import numpy as np
-from alf_vars import *
+from alf_vars import ALFVAR,ALFPARAM
 from str2arr import str2arr
-from linterp import *
+from linterp import linterp, tsum
 from getmodel import getmodel
 from getmass import getmass
-from alf_constants import *
+from alf_constants import ALF_HOME,mypi,clight,lsun,pc2cm
 
 def ml_from_mcmc(filename, alfvar=None):
     """

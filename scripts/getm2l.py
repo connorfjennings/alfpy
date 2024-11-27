@@ -1,8 +1,7 @@
-import os, numpy as np, pandas as pd
-from alf_vars import *
-from linterp import *
+import os, numpy as np
+from linterp import tsum
 from getmass import getmass
-from alf_constants import *
+from alf_constants import ALF_HOME,mypi,clight,lsun,pc2cm
 from sedpy import observate
 from numba import jit
 __all__ = ['getm2l']

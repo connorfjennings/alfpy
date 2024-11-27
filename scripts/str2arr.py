@@ -1,12 +1,12 @@
-import math, numpy as np
+import numpy as np
 from tofit_parameters import tofit_params
 
 __all__ = ['str2arr', 'fill_param']
 
 #tofit_params_keys = list(tofit_params.keys())
 tofit_params_keys, tofit_params_values = zip(*[(key, v2) for key, (_, v2) in tofit_params.items()])
-tofit_params_keys = list(tofit_params_keys)  # need a list instead of a tuple
-tofit_params_values = np.array(tofit_params_values)  # Convert to NumPy array for numerical operations
+tofit_params_keys = list(tofit_params_keys) 
+tofit_params_values = np.array(tofit_params_values) 
 # ---------------------------------------------------------------- #
 class alfobj(object):
     def __init__(self, inarr=None):

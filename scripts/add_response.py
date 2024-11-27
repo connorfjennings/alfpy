@@ -1,6 +1,4 @@
-import alf_vars
 from numba import jit
-import math
 __all__ = ['add_response']
 
 

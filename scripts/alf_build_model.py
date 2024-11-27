@@ -3,15 +3,15 @@ import os, sys, copy, pickle, numpy as np
 import time
 from tofit_parameters import tofit_params
 from func import func
-from alf_vars import *
-from alf_constants import *
+from alf_vars import ALFVAR
+from alf_constants import tiny_number
 from priors import TopHat,ClippedNormal
-from read_data import *
-from linterp import *
-from str2arr import *
+from read_data import read_data
+from linterp import locate, linterp
+from str2arr import str2arr
 #from getvelz import getvelz
-from setup import *
-from set_pinit_priors import *
+from setup import setup
+from set_pinit_priors import set_pinit_priors
 from scipy.optimize import differential_evolution
 
 # -------------------------------------------------------- #
@@ -23,6 +23,7 @@ def func_2min(inarr):
                 prhiarr=global_prhiarr,
                 prloarr=global_prloarr,
                )
+
 # -------------------------------------------------------- #
 def build_alf_model(filename, tag='', pool_type='multiprocessing'):
     """
@@ -191,8 +192,8 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
                 
         print('\nsetting up model arry with given imf_type and input data\n')
         tstart = time.time()
-        #alfvar = setup(alfvar, onlybasic = False, pool = pool)
-        alfvar = setup(alfvar, onlybasic = True, pool = pool)  # use onlybasic for test purpose
+        alfvar = setup(alfvar, onlybasic = False, pool = pool)
+        #alfvar = setup(alfvar, onlybasic = True, pool = pool)  # use onlybasic for test purpose
         ndur = time.time() - tstart
         print('\n Total time for setup {:.2f}min'.format(ndur/60))
 
@@ -259,30 +260,15 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
         workers=1)
     print('optimized parameters', optimize_res)
     
-    # -------- getting priors for the sampler -------- #
-    #global global_all_prior  # note it's for all parameters
-    
     # ---- Update priors based on the optimization results
     prrange = [10, 10, 0.1, 0.1]  # Assumed range adjustments
-    global_all_prior = [
-        ClippedNormal(np.array(optimize_res.x)[i], prrange[i],
-                      global_prloarr[i], 
-                      global_prhiarr[i]) for i in range(len_optimize)] + [
-                          TopHat(global_prloarr[i + len_optimize],
-                                 global_prhiarr[i + len_optimize]) for i in range(len(all_key_list) -  len_optimize)]
-    ## ---- Update priors for the sampler
-    for i_, k_ in enumerate(all_key_list):
-        if i_ >= len_optimize:
-            continue
-        print(f"i_={i_}, k_={k_}")
-        if k_ in use_keys:
-            prrange_ = global_prhiarr[i_] - global_prloarr[i_]
-            print(f"changing prior for index={i_}, {k_}, prior range = {prrange_}")
-            print(global_all_prior[i_].__dict__)
-            print(f"index for use_keys is {use_keys.index(k_)}")
-            global_all_prior[i_] = TopHat(
-                max(global_prloarr[i_], optimize_res.x[use_keys.index(k_)] - 0.25*prrange_), 
-                min(global_prhiarr[i_], optimize_res.x[use_keys.index(k_)] + 0.25*prrange_))
+
+    global_all_prior = [ClippedNormal(
+        np.array(optimize_res.x)[i], prrange[i],
+        global_prloarr[i], 
+        global_prhiarr[i]) for i in range(len_optimize)] + [
+            TopHat(global_prloarr[i+len_optimize], 
+                          global_prhiarr[i+len_optimize]) for i in range(len(all_key_list)-len_optimize)]
             
     print(f"pickle dump the following file {pickle_model_name}")
     pickle.dump([alfvar, prloarr, prhiarr, global_all_prior, optimize_res.x], open(pickle_model_name, "wb" ))
@@ -294,8 +280,6 @@ def setup_pool(pool_type, ncpu=4):
     """Set up the multiprocessing or MPI pool."""
     if pool_type == 'multiprocessing':
         import multiprocessing 
-        #multiprocessing.set_start_method("spawn", force=True)
-        #ctx = multiprocessing.get_context("spawn")
         return multiprocessing.Pool(processes=ncpu)
     else:
         from schwimmbad import MPIPool
@@ -311,7 +295,7 @@ def setup_pool(pool_type, ncpu=4):
 # -------------------------------- #
 if __name__ == "__main__":
     import multiprocessing
-    ncpu = os.getenv('SLURM_CPUS_PER_TASK')
+    #ncpu = os.getenv('SLURM_CPUS_PER_TASK')
     ncpu = 8
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:

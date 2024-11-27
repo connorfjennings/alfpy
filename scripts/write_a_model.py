@@ -1,9 +1,8 @@
 from alf_vars import ALFVAR
 from linterp import locate
-from getmodel import *
-#from getm2l import *
+from getmodel import getmodel
 from setup import setup
-import os, pickle, numpy as np
+import os, numpy as np
 from alf_constants import *
 from str2arr import alfobj
 

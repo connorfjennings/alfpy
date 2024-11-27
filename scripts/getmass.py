@@ -1,5 +1,4 @@
 import numpy as np
-#from alf_vars import *
 from numba import jit
 
 @jit(nopython=True, fastmath=True)

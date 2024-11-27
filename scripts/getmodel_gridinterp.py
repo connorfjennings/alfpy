@@ -1,12 +1,11 @@
 import math, numpy as np
-import scipy
 from scipy.interpolate import RegularGridInterpolator
 
 from velbroad import *
 from linterp import locate
 from add_response import add_response
 from getmass import getmass
-from alf_constants import *
+from alf_constants import clight
 #from str2arr import *
 
 __all__ = ['getmodel_grid']

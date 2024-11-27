@@ -1,14 +1,21 @@
+"""
+Prior models for parameter fitting.
+
+The `TopHat` and `ClippedNormal` classes are based on implementations 
+from the `prospector` library:
+    https://github.com/bd-j/prospector/blob/master/prospect/models/priors.py
+Authored by Ben Johnson and collaborators.
+"""
+
 import numpy as np
-import scipy.stats 
-#from alf_constants import *
+from scipy.stats import uniform, truncnorm
+
 __all__ = ['TopHat', 'ClippedNormal']
 
 
 class TopHat(object):
     """
     TopHat prior object.
-    Based on `prospector`:
-        https://github.com/bd-j/prospector/blob/master/prospect/models/priors.py
     """
     def __init__(self, low=0.0, upp=1.0):
         """Constructor.
@@ -19,7 +26,7 @@ class TopHat(object):
         upp : float
             Upper limit of the flat distribution.
         """
-        self.distr = scipy.stats.uniform
+        self.distr = uniform
         self._low = low
         self._upp = upp
 
@@ -121,7 +128,7 @@ class ClippedNormal(object):
         upp : float
             Upper limit of the flat distribution.
         """
-        self.distr = scipy.stats.truncnorm
+        self.distr = truncnorm
         self._mean = mean
         self._sigma = sigma
         self._mini = mini

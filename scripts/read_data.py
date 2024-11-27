@@ -1,16 +1,24 @@
-import os, numpy as np
-from itertools import takewhile
-import re
-
-from alf_vars import *
+import numpy as np
+from alf_vars import ALFTDATA
 from astropy.io import ascii as astro_ascii
-from linterp import *
-from alf_constants import *
+from linterp import linterp
+from alf_constants import ALF_HOME, tiny_number
 
 
 __all__ = ['read_data']
 
+# ----------------
+def get_alf_header(infile):
+    char = '#'
+    header = []
+    with open(infile, "r") as myfile:
+        for line in myfile:
+            if line.startswith(char):
+                header.append([float(item) for item in line[1:].split()])
+    return np.array(header)
 
+
+# ----------------
 def read_data(alfvar, sigma=None, velz=None):
     """
     # routine to read in the data that will be used in the fit
@@ -26,10 +34,10 @@ def read_data(alfvar, sigma=None, velz=None):
     
     if alfvar.fit_indices == 1:
         try:
-            f10 = astro_ascii.read("{0}indata/{1}.indx".format(ALF_HOME, filename))
+            f10 = astro_ascii.read(f"{ALF_HOME}indata/{filename}.indx")
         except:
             print('READ_DATA ERROR: file not found')
-            print("{0}indata/{1}.indx".format(ALF_HOME, filename))
+            print(f"{ALF_HOME}indata/{filename}.indx")
 
         alfvar.indx2fit = f10['col1']
         ivelz = f10['col2'] 
@@ -37,19 +45,19 @@ def read_data(alfvar, sigma=None, velz=None):
 
     else:
         try:
-            spec = astro_ascii.read("{0}indata/{1}.dat".format(ALF_HOME, filename))
+            spec = astro_ascii.read(f"{ALF_HOME}indata/{filename}.dat")
         except:
             print('READ_DATA ERROR: file not found')
-            print("{0}indata/{1}.dat".format(ALF_HOME, filename))
+            print(f"{ALF_HOME}indata/{filename}.dat")
 
 
     # ---- Read in the wavelength boundaries, which are in the header-----!
-    with open('{0}indata/{1}.dat'.format(ALF_HOME, filename), 'r') as fobj:
-        headiter = takewhile(lambda s: s.startswith('#'), fobj)
-        header = list(headiter)
-        
-    header = np.array([list(filter(None, re.split('#|\s+|\n', i))) for i in header])
-    header = header.astype(float)
+    #with open('{0}indata/{1}.dat'.format(ALF_HOME, filename), 'r') as fobj:
+    #    headiter = takewhile(lambda s: s.startswith('#'), fobj)
+    #    header = list(headiter)   
+    #header = np.array([list(filter(None, re.split('#|\s+|\n', i))) for i in header])
+    #header = header.astype(float)
+    header = get_alf_header(f'{ALF_HOME}indata/{filename}.dat')
     nlint = header.shape[0]
     if nlint == 0:
         header = np.array([np.array([0.40, 0.47]), np.array([0.47, 0.55])])

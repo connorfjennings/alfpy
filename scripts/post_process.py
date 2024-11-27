@@ -1,17 +1,17 @@
-import os, math, numpy as np, pandas as pd
+import os, math, numpy as np
 from functools import partial
 from dynesty import utils as dyfunc
-from getm2l import *
-from getmodel import *
-from str2arr import *
+from getm2l import getm2l
+from getmodel import getmodel
+from str2arr import str2arr, fill_param
 from tofit_parameters import tofit_params
 import time
 import h5py
-import math, copy, numpy as np
+import math, numpy as np
 from scipy import interpolate
 __all__ = ['calm2l_dynesty']
-ALFPY_HOME = os.environ['ALFPY_HOME']
 
+ALFPY_HOME = os.environ['ALFPY_HOME']
 key_list = [k for k, (v1, v2) in tofit_params.items() if v1 == True]
 
 # ---------------------------------------------------------------- #

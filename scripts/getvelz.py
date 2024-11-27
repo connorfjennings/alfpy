@@ -1,8 +1,8 @@
-from alf_vars import *
-from linterp import *
-from contnormspec import *
-from alf_constants import *
-import copy, numpy as np
+from alf_vars import ALFTDATA
+from linterp import locate, linterp
+from contnormspec import contnormspec
+from alf_constants import clight,huge_number
+import numpy as np
 
 
 def getvelz(alfvar):

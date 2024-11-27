@@ -1,6 +1,6 @@
 #from alf_vars import *
-from str2arr import alfobj, str2arr
-import copy, random, numpy as np
+from str2arr import alfobj
+import random
 import math
 
 __all__ = ['set_pinit_priors']

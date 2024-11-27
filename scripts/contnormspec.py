@@ -1,7 +1,6 @@
 import numpy as np
 from linterp import locate
-import math
-from numba import jit
+from numba import jit, njit
 
 __all__ = ['contnormspec',]
 # ------------------------------------------------------------------------- 
@@ -9,7 +8,7 @@ __all__ = ['contnormspec',]
 def tmp_cal(lam, il1, il2, npow=None, npolymax = 10):
     # ---- !divide by a power-law of degree npow. one degree per poly_dlam.
     # ---- !don't let things get out of hand (force Npow<=npolymax)
-    poly_dlam = 100.
+    poly_dlam = 100.0
     buff = 0.0
     n1 = lam.size
     if npow is None:
@@ -29,11 +28,6 @@ def polyfit_vandermonde(x, y, yerr, degree):
     """
     Fit a polynomial of the given degree to the data points (x, y)
     using a weighted Vandermonde matrix and least squares solution.
-    Parameters:
-    - x: 1D array of input data (independent variable)
-    - y: 1D array of output data (dependent variable)
-    - yerr: 1D array of error estimates for y
-    - degree: Degree of the polynomial to fit
     Returns:
     - coefficients: 1D array of polynomial coefficients (from lowest to highest degree)
     """
@@ -41,7 +35,6 @@ def polyfit_vandermonde(x, y, yerr, degree):
     
     weights = 1 / yerr**2
     W = np.diag(weights)
-    
     # (V^T * W * V) * c = (V^T * W * y)
     A = V.T @ W @ V
     b = V.T @ W @ y
@@ -66,9 +59,15 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     #, lam,flx,err,il1,il2,flxout,coeff=None
     """
     i1, i2, ml, npow = tmp_cal(lam, il1, il2, npow, npolymax)
-    
+    lam_sub = lam[i1:i2]
+    flx_sub = flx[i1:i2]
+    err_sub = err[i1:i2]
+
     #!simple linear least squares polynomial fit
-    ind = np.isfinite(flx[i1:i2])
+    valid = np.isfinite(flx_sub) & np.isfinite(err_sub)
+    lam_valid = lam_sub[valid] - ml  # Centering around ml
+    flx_valid = flx_sub[valid]
+    err_valid = err_sub[valid]
     #res = np.polyfit(x = lam[i1:i2][ind]-ml, 
     #                 y = flx[i1:i2][ind], 
     #                 deg = npow, full = True, 
@@ -80,8 +79,8 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     #p = np.poly1d(tcoeff)
     #poly = p(lam-ml)
 
-    tcoeff = polyfit_vandermonde(lam[i1:i2][ind]-ml, flx[i1:i2][ind], err[i1:i2][ind], int(npow)+1)
-    poly = evaluate_poly(lam-ml, tcoeff)
+    tcoeff = polyfit_vandermonde(lam_valid, flx_valid, err_valid, int(npow)+1)
+    poly = evaluate_poly(lam - ml, tcoeff)
     
     if coeff == False and return_poly==False:
         return npow

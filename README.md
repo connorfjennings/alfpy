@@ -12,20 +12,21 @@ I thank Charlie Conroy for his guidance on alf since the very beginning and shar
 - Dependencies: __alfpy__ requires all the models from the original __alf__ project, located under `alf/infiles/`.
 
 ## Installation and Requirements
-To run alfpy, you’ll need the following Python packages:
-- numpy
-- numba
+To run alfpy, you’ll need the following Python packages (I list the version I use)
+- numpy (1.26.4)
+- numba (0.60.0)
 - pickle
-- emcee
-- dynesty
+- emcee (3.1.6)
+- dynesty (2.1.4)
 - multiprocessing
 
 ## Usage Instructions
 1.	Edit `tofit_parameters.py` to specify the parameters you want to fit.
-2.	Run the following command to build the model:
- `python3 alf_build_model.py <filename> <tag>`
+2.	With `<filename>.dat` placed in `alf/indata/`, run the following command to build the model:
+ `python alf_build_model.py <filename> <tag>`
+
 3.	To start fitting the model, run:
-`python3 alf.py <filename> <tag>`
+`python alf.py <filename> <tag>`
 
 ## Citation
 If __alfpy__ is helpful in your work, please kindly cite this GitHub repository, as well as all the relevant citations for the original [__alf__](https://github.com/cconroy20/alf/tree/master/src) which are mentioned in its documentation.

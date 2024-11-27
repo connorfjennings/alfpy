@@ -4,9 +4,12 @@
 """
 __all__ = ['ALF_HOME', 'mypi', 'clight', 'msun', 'lsun', 'pc2cm',
            'huge_number', 'tiny_number']
-import os, numpy as np
-import scipy.constants
-ALF_HOME = os.environ['ALF_HOME']
+
+import os
+try:
+    ALF_HOME = os.environ['ALF_HOME']
+except:
+    print('ALF ERROR: ALF_HOME environment variable not set!')
 
 # ---- from alf_var.py ---- #
 # ---- Physical Constants ---- !

@@ -1,9 +1,9 @@
 import numpy as np
-from numba import jit
+from numba import jit, njit
 __all__ = ['locate', 'linterp', 'tsum']
-
+#locate, linterp, tsum
 # ---------------------------------------------------------------- #
-@jit(nopython=True,fastmath=True)
+@njit #(nopython=True,fastmath=True)
 def locate(xx, x):
     """
     - should be the same as locate.f90
@@ -38,13 +38,13 @@ def locate(xx, x):
     
 
 # ---------------------------------------------------------------- #
-@jit(nopython=True,fastmath=True)
+@njit #(nopython=True,fastmath=True)
 def linterp(xin, yin, xout):
     return np.interp(xout, xin, yin)
 
 
 # ---------------------------------------------------------------- #
-@jit(nopython=True,fastmath=True)
+@njit #(nopython=True,fastmath=True)
 def tsum(xin, yin):
     """
     !simple trapezoidal integration of tabulated function (xin,yin)

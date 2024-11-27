@@ -1,6 +1,5 @@
 import numpy as np
 from alf_constants import clight, huge_number
-from alf_vars import *
 
 def maskemlines(alfvar, zred, sigma):
     """

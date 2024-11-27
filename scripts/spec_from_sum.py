@@ -1,11 +1,10 @@
 import numpy as np
-from alf_vars import *
-from linterp import *
-from str2arr import *
-from getmodel import *
-from getm2l import *
-from alf_constants import *
-from setup import *
+from alf_vars import ALFVAR
+from linterp import linterp
+from str2arr import str2arr
+from getmodel import getmodel
+from alf_constants import ALF_HOME,clight
+from setup import setup
 
 __all__ = ['spec_from_sum']
 

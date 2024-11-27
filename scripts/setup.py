@@ -1,11 +1,8 @@
-import os, scipy, numpy as np
-import pandas as pd
-from astropy.io import ascii as astro_ascii
-from linterp import *
-from alf_vars import *
-from alf_constants import *
-from vacairconv import *
-from velbroad import *
+import numpy as np
+from linterp import locate, linterp
+from alf_constants import tiny_number, ALF_HOME
+from vacairconv import airtovac
+from velbroad import velbroad
 import time
 from functools import partial
 
@@ -47,10 +44,10 @@ def setup(alfvar, onlybasic = False, pool=None):
     nimf, nimfoff = alfvar.nimf, alfvar.nimfoff
     # ---------------------------------------------------------------!
     # ---------------------------------------------------------------!
-    try:
-        ALF_HOME = os.environ['ALF_HOME']
-    except:
-        print('ALF ERROR: ALF_HOME environment variable not set!')
+    #try:
+    #    ALF_HOME = os.environ['ALF_HOME']
+    #except:
+    #    print('ALF ERROR: ALF_HOME environment variable not set!')
 
     # -- correction factor between Salpeter, Kroupa and flat intrabin weights
     # -- for non-parametric IMF

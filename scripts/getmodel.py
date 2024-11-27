@@ -1,29 +1,29 @@
 import math, numpy as np
-from velbroad import *
+from velbroad import velbroad
 from linterp import locate, linterp
 from add_response import add_response, add_na_03
 from getmass import getmass
-from alf_constants import *
+from alf_constants import clight
 #from str2arr import *
-from numba import jit
+from numba import jit, njit
 __all__ = ['getmodel']
         
 
 # ---------------------------------------------------------------- #    
-@jit(nopython=True, fastmath=True)
+@njit #(nopython=True, fastmath=True)
 def fast_np_power(x1, x2):
     # ---- only slightly faster ---- #
     return x1**x2
 
 # ---------------------------------------------------------------- #    
-@jit(nopython=True, fastmath=True)
+@njit #(nopython=True, fastmath=True)
 def get_dv(ingrid, inval, maxv, minv, maxind, minind):
     inind = max(min(locate(ingrid, inval),maxind),minind)  
     return inind, max(min((inval - ingrid[inind])/(ingrid[inind+1]-ingrid[inind]), maxv), minv)
 
 
 # ---------------------------------------------------------------- #    
-@jit(nopython=True, fastmath=True)
+@njit #(nopython=True, fastmath=True)
 def cal_logsspm(inarr, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt):
         tmp1 = ((1-dx1)*(1-dx2)*(1-dx3)*inarr[:,vv1,vv2,vt+1,vv3,vm3+1] + 
                    dx1*(1-dx2)*(1-dx3)*inarr[:,vv1+1,vv2,vt+1,vv3,vm3+1] + 
@@ -66,7 +66,7 @@ def cal_logsspm(inarr, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt):
 
     
 # ---------------------------------------------------------------- #  
-@jit(nopython=True, fastmath=True)
+@njit #(nopython=True, fastmath=True)
 def cal_logssp(inarr, dx1, dx2, dt, dm, vv1, vv2, vm, vt):    
         tmp1 = ((1.0-dx1)*(1.0-dx2)*inarr[:, vv1,vv2,vt+1,vm+1] + 
                    dx1*(1.0-dx2)*inarr[:, vv1+1,vv2,vt+1,vm+1] + 
@@ -93,7 +93,7 @@ def cal_logssp(inarr, dx1, dx2, dt, dm, vv1, vv2, vm, vt):
 
     
 # ---------------------------------------------------------------- #
-@jit(nopython=True, fastmath=True)
+@njit #(nopython=True, fastmath=True)
 def tmp_add_em(i_norm, i_em, p_velz2, p_sigma2, i_lam):
     ve   = i_em/(1+p_velz2/clight*1e5)
     lsig = max(ve*p_sigma2/clight*1e5, 1.0)  #min dlam=1.0A
@@ -101,7 +101,7 @@ def tmp_add_em(i_norm, i_em, p_velz2, p_sigma2, i_lam):
 
 
 # ---------------------------------------------------------------- #
-@jit(nopython=True, fastmath=True)
+@njit #(nopython=True, fastmath=True)
 def tmp_fy(dh, dm, vh, vm, ingrid, inspec, inarr_m7g, in_loghot, in_logm7g):
     #!add a hot star (interpolate in hot_teff and [Z/H]
     tmp = (dh*dm*ingrid[:,vh+1,vm+1] + (1-dh)*dm*ingrid[:,vh,vm+1] + dh*(1-dm)*ingrid[:,vh+1,vm] + (1-dh)*(1-dm)*ingrid[:,vh,vm])  
@@ -149,6 +149,12 @@ def getmodel(pos, alfvar, mw = 0):
     if (alfvar.mwimf == 0) and (mw==0) and (alfvar.fit_type==0) and (alfvar.powell_fitting==0):
         vv1, dx1 = get_dv(sspgrid.imfx1, pos.imf1, 1.0, 0.0, nimf-2, 0)
 
+        #print('vv1 =', vv1)
+        #print('dx1 =', dx1)
+        #print('imf1 =', pos.imf1)
+        #print('nimf =', nimf)
+        #print('imfx1 =', sspgrid.imfx1)
+        
         if alfvar.imf_type in [0, 2]:
             # ---- single power-law slope for IMF=0,2
             vv2 = vv1
@@ -156,6 +162,9 @@ def getmodel(pos, alfvar, mw = 0):
         else:
             # ---- two-part power-law for IMF=1,3
             vv2, dx2 = get_dv(sspgrid.imfx2, pos.imf2, 1.0, 0.0, nimf-2, 0)
+            #print("two-part power-law IMF")
+            #print('vv2 =', vv2)
+            #print('dx2 =', dx2)
   
         if alfvar.imf_type in [2, 3]:
             vv3, dx3 = get_dv(sspgrid.imfx3, pos.imf3, 1.0, 0.0, alfvar.nmcut-2, 0)           
@@ -165,7 +174,8 @@ def getmodel(pos, alfvar, mw = 0):
             spec = cal_logsspm(sspgrid.logsspm, dx1, dx2, dx3, dt, dm3, vv1, vv2, vv3, vm3, vt)
 
         
-        elif alfvar.imf_type in [0, 1]:
+        elif (alfvar.imf_type)==0 or (alfvar.imf_type==1):
+            #print("getting sspgrid.logssp")
             spec = cal_logssp(sspgrid.logssp, dx1, dx2, dt, dm, vv1, vv2, vm, vt)
             
         elif alfvar.imf_type == 4:
@@ -228,6 +238,7 @@ def getmodel(pos, alfvar, mw = 0):
 
 
     else:
+        #print("compute a Kroupa IMF")
         # ---- compute a Kroupa IMF, line196
         spec = fast_np_power(10, dt*dm*sspgrid.logssp[:,imfr1,imfr2,vt+1,vm+1] + 
                         (1-dt)*dm*sspgrid.logssp[:,imfr1,imfr2,vt,vm+1] + 

@@ -67,7 +67,9 @@ def func_2min(inarr):
 
 
 # -------------------------------------------------------- #
-def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chains=True):
+def alf(filename, tag='', 
+        nwalkers = 128, nburn = 2000, 
+        run='dynesty', pool_type='multiprocessing', save_chains=True):
     """
     - based on alf.f90
     - `https://github.com/cconroy20/alf/blob/master/src/alf.f90`
@@ -111,8 +113,8 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
     # -- inverse sampling of the walkers for printing
     # -- NB: setting this to >1 currently results in errors in the *sum outputs
     nsample = 1
-    nburn = 10000    # -- length of chain burn-in
-    nwalkers = 512    # -- number of walkers
+    #nburn = 2000    # -- length of chain burn-in
+    #nwalkers = 128    # -- number of walkers
     npar = len(use_keys)
     all_key_list = list(tofit_params.keys())
     
@@ -153,16 +155,16 @@ def alf(filename, tag='', run='dynesty', pool_type='multiprocessing', save_chain
                 
             print('Initializing emcee with nwalkers=%.0f, npar=%.0f' %(nwalkers, npar))
             tstart = time.time()
-            backends_fname = '{0}results_emcee/backend_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
-            backend = emcee.backends.HDFBackend(backends_fname)
-            backend.reset(nwalkers, npar)
+            #backends_fname = '{0}results_emcee/backend_{1}_{2}.p'.format(ALFPY_HOME, filename, tag)
+            #backend = emcee.backends.HDFBackend(backends_fname)
+            #backend.reset(nwalkers, npar)
 
             sampler = emcee.EnsembleSampler(
                 nwalkers, npar, log_prob, pool=pool, 
-                moves = [emcee.moves.StretchMove(a=2.0)], 
-                backend = backend
+                #moves = [emcee.moves.StretchMove(a=2.0)], 
+                #backend = backend
             )
-            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc, progress=True, skip_initial_state_check=True)
+            sampler.run_mcmc(pos_emcee_in, nburn + nmcmc)
             print('mean acc fraction %.3f' %np.nanmean(sampler.acceptance_fraction))
             ndur = time.time() - tstart
             print('\n Total time for emcee {:.2f}min'.format(ndur/60))
@@ -344,6 +346,7 @@ if __name__ == "__main__":
     import multiprocessing
 
     ncpu = os.getenv('SLURM_CPUS_PER_TASK')
+    ncpu = 8
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
         pool_type = 'multiprocessing'
@@ -359,7 +362,7 @@ if __name__ == "__main__":
     tag = ''
     if n_argv >= 3:
         tag = argv_l[2]
-    run = 'emcee'
+    run = 'dynesty'
     print('\nrunning alf:\ninput spectrum:{0}.dat'.format(filename))
     print('sampler = {0}'.format(run))
     alf(filename, tag, run=run, pool_type = pool_type)

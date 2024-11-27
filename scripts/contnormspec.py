@@ -64,7 +64,6 @@ def contnormspec(lam, flx, err, il1, il2, coeff=False, return_poly=False,
     #, lam,flx,err,il1,il2,flxout,coeff=None
     """
     i1, i2, ml, npow = tmp_cal(lam, il1, il2, npow, npolymax)
-    print(f"npow ={npow}")
     
     #!simple linear least squares polynomial fit
     ind = np.isfinite(flx[i1:i2])

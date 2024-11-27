@@ -21,13 +21,8 @@ def getm2l(lam, spec, pos,
     -- INPUTS: lam, spec, pos
     -- OUTPUTS: m2l
     """
-    #if alfvar == None:
-    #    alfvar = ALFVAR()
-    #nfil = alfvar.nfil
-    #nstart, nend, nfil = alfvar.nstart, alfvar.nend, alfvar.nfil
+
     nl = nend - nstart + 1
-    #imf_type = alfvar.imf_type
-    #nstart = alfvar.nstart
     
     msto_t0 = 0.33250847; msto_t1 = -0.29560944
     msto_z0 = 0.95402521; msto_z1 = 0.21944863; msto_z2 = 0.070565820
@@ -53,8 +48,6 @@ def getm2l(lam, spec, pos,
     #!convert to the proper units
     aspec = spec*lsun/1e6*lam**2/clight/1e8/4/mypi/pc2cm**2 
     msto = 10**(msto_t0 + msto_t1*pos.logage)*(msto_z0 + msto_z1*pos.zh + msto_z2*pos.zh**2 )
-    
-    
     
     if mw == 1:
         mass, imfnorm = getmass(imflo, msto, 

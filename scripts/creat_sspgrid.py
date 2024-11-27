@@ -20,7 +20,7 @@ from read_data import read_data
 
 
 alfvar = ALFVAR()
-alfvar.filename = 'input
+alfvar.filename = 'input'
 alfvar = read_data(alfvar)
 alfvar.imf_type = 3
 alfvar = setup(alfvar, onlybasic = True, ncpu=16)

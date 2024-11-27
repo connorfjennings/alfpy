@@ -22,13 +22,12 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
     
     #!---------------------------------------------------------------!
     #!---------------------------------------------------------------!
+    bhlim = 40.0; nslim = 8.5
     m2 = 0.5; m3 = 1.0
     if mlo > m2:
         #print('GETMASS ERROR: mlo>m2: %.2e, %.2e' %(mlo, m2))
         return np.nan, np.nan
     
-    #alfvar = ALFVAR()
-    #imflo, imfhi = alfvar.imflo, alfvar.imfhi
     imflo, imfhi = 0.08, 100.0
     #imf5 = alfvar.imf5
     imf5 = 0.0
@@ -46,33 +45,31 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
     npi_renorm[:] = 1.0
     
     
-    bhlim = 40.0; nslim = 8.5
-    m2 = 0.5; m3 = 1.0
-    
     nimfnp = 9
     imfw = np.zeros(nimfnp)
     alpha2 = np.empty(nimfnp)
 
     # ---------------------------------------------------------------!
+    getmass = 0.0
     # ---------------------------------------------------------------!
         
-    getmass = 0.0
 
     if imf4 is None:
         # ---- normalize the weights so that 1 Msun formed at t=0 ---- #
-        imfnorm = (m2**(-imf1+2)-mlo**(-imf1+2))/(-imf1+2) + \
-                   m2**(-imf1+imf2)*(m3**(-imf2+2)-m2**(-imf2+2))/(-imf2+2) + \
+        imfnorm = (m2**(-imf1+2.0)-mlo**(-imf1+2.0))/(-imf1+2.0) + \
+                   m2**(-imf1+imf2)*(m3**(-imf2+2.0)-m2**(-imf2+2))/(-imf2+2) + \
                    m2**(-imf1+imf2)*(imfhi**(-imfup+2)-m3**(-imfup+2))/(-imfup+2)
 
         # ---- stars still alive ---- #
-        getmass = (m2**(-imf1+2)-mlo**(-imf1+2))/(-imf1+2)
+        getmass = (m2**(-imf1+2.0)-mlo**(-imf1+2.0))/(-imf1+2.0)
         
         if mto < m3:
-            getmass += m2**(-imf1+imf2)*(mto**(-imf2+2)-m2**(-imf2+2))/(-imf2+2)
+            getmass += m2**(-imf1+imf2)*(mto**(-imf2+2.0)-m2**(-imf2+2.0))/(-imf2+2.0)
         else:
-            getmass += (m2**(-imf1+imf2)*(m3**(-imf2+2)-m2**(-imf2+2))/(-imf2+2) + \
-                        m2**(-imf1+imf2)*(mto**(-imfup+2)-m3**(-imfup+2))/(-imfup+2))
-            
+            getmass += m2**(-imf1+imf2)*(m3**(-imf2+2.0)-m2**(-imf2+2.0))/(-imf2+2.0) + \
+                        m2**(-imf1+imf2)*(mto**(-imfup+2.0)-m3**(-imfup+2.0))/(-imfup+2.0)
+
+
         getmass = getmass/imfnorm
     
         # ---- BH remnants ---- #
@@ -98,7 +95,7 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
             getmass += 0.48*m2**(-imf1+imf2)*(nslim**(-imfup+1)-mto**(-imfup+1))/(-imfup+1)/imfnorm
             
             getmass += 0.077*m2**(-imf1+imf2)*(nslim**(-imfup+2)-mto**(-imfup+2))/(-imfup+2)/imfnorm
-
+        
 
     else:
         # ---- non-parametric IMF
@@ -214,6 +211,7 @@ def getmass(mlo, mto, imf1, imf2, imfup, imf3=None, imf4=None, timfnorm = None):
         getmass += 0.5*10**imf5/(mbin_nimf9[9]**(-imfup))*(imfhi**(-imfup+2)-bhlim**(-imfup+2))/(-imfup+2)
         # ---- NS remnants ---- #
         getmass += 1.4*10**imf5/(mbin_nimf9[9]**(-imfup))*(bhlim**(-imfup+1)-nslim**(-imfup+1))/(-imfup+1)
+        
         getmass = getmass / imfnorm
 
         

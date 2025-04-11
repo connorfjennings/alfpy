@@ -276,10 +276,16 @@ def build_alf_model(filename, tag='', pool_type='multiprocessing'):
 
 
 # -------- #
-def setup_pool(pool_type, ncpu=4):
+def get_available_cpus():
+    cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+    ntasks = int(os.environ.get("SLURM_NTASKS", 1))
+    return cpus_per_task * ntasks
+
+def setup_pool(pool_type):
     """Set up the multiprocessing or MPI pool."""
     if pool_type == 'multiprocessing':
-        import multiprocessing 
+        import multiprocessing
+        ncpu = get_available_cpus()
         return multiprocessing.Pool(processes=ncpu)
     else:
         from schwimmbad import MPIPool
@@ -296,7 +302,7 @@ def setup_pool(pool_type, ncpu=4):
 if __name__ == "__main__":
     import multiprocessing
     #ncpu = os.getenv('SLURM_CPUS_PER_TASK')
-    ncpu = 8
+    ncpu = get_available_cpus()
     os.environ["OMP_NUM_THREADS"] = "1"
     if ncpu is None:
         pool_type = 'multiprocessing'

@@ -6,7 +6,7 @@ from tofit_parameters import tofit_params
 from func import func
 from str2arr import fill_param
 from post_process import calm2l_dynesty
-from alf_build_model import setup_pool
+from alf_build_model import setup_pool, get_available_cpus
 
 # -------------------------------------------------------- #
 class LogProbCalculator:
@@ -76,7 +76,6 @@ def alf(filename,
         run='dynesty', 
         pool_type='multiprocessing', 
         emcee_save_chains = False, 
-        ncpu=1, 
         nested_post_process=False):
     """
     Main function to perform ALF fitting using either emcee or dynesty.
@@ -119,6 +118,10 @@ def alf(filename,
     npar = len(use_keys)
     all_key_list = list(tofit_params.keys())
     log_prob_calculator = LogProbCalculator(alfvar, prloarr, prhiarr, all_prior, use_keys)
+    
+    # Set up multiprocessing
+    ncpu = get_available_cpus()
+    print(f'Using {ncpu} cpus')
     pool = setup_pool(pool_type, ncpu) # Initialize pool
 
     if run == 'emcee' or run == 'emcee_test':
@@ -230,12 +233,19 @@ def alf(filename,
             pool.close()
     # ---------------------------------------------------------------- #
     elif run == 'dynesty':
+
         # Run dynesty
         dsampler = dynesty.NestedSampler(
-                log_prob_calculator.log_prob_nested,
-                log_prob_calculator.prior_transform,
-                npar, nlive = int(50*npar),
-                sample='rslice', bootstrap=0)
+            log_prob_calculator.log_prob_nested,
+            log_prob_calculator.prior_transform,
+            npar,
+            nlive=int(50*npar),
+            sample='rslice',
+            bootstrap=0,
+            pool=pool,
+            queue_size=ncpu
+        )
+
 
         tstart = time.time()
         dsampler.run_nested(dlogz=0.5)
@@ -263,9 +273,9 @@ if __name__ == "__main__":
     argv_l = sys.argv
     n_argv = len(argv_l)
     filename = argv_l[1]
-    tag = argv_l[2] if n_argv >= 2 else ''
+    tag = argv_l[2] if n_argv >= 3 else ''
     # pool_type: multiprocessing or emcee
     alf(filename, tag, 
         run = "dynesty", 
         pool_type = "multiprocessing", 
-        ncpu=8)
+        )

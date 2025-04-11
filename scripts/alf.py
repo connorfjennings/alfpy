@@ -122,7 +122,7 @@ def alf(filename,
     # Set up multiprocessing
     ncpu = get_available_cpus()
     print(f'Using {ncpu} cpus')
-    pool = setup_pool(pool_type, ncpu) # Initialize pool
+    pool = setup_pool(pool_type) # Initialize pool
 
     if run == 'emcee' or run == 'emcee_test':
         with pool:
